@@ -63,6 +63,11 @@ namespace Notka.Mcp
 
             using (response)
             {
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    throw new McpException(@"Notka odrzuciła token dostępu. Uruchom Notkę ponownie; token jest w pliku %LOCALAPPDATA%\Notka\api-token.");
+                }
+
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new McpException(await DescribeErrorAsync(response, cancellationToken));

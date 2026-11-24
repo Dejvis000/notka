@@ -23,6 +23,11 @@ dotnet test --solution Notka.sln
 
 Baza migruje się automatycznie przy starcie. API odrzuca żądania z obcym `Host` lub z nagłówkiem `Origin`.
 
+Każde żądanie wymaga nagłówka `Authorization: Bearer <token>`. Token powstaje przy każdym uruchomieniu aplikacji
+desktopowej w pliku `%LOCALAPPDATA%\Notka\api-token` (`Notka:TokenPath` zmienia ścieżkę) i jest usuwany przy
+zamknięciu; aplikacja i serwer MCP korzystają z niego automatycznie. Adres API serwera MCP (`Notka__ApiUrl`)
+musi być literalnym adresem IP z pętli zwrotnej, np. `http://127.0.0.1:5123`.
+
 ## API
 
 - `/api/tasks` - lista (`?filter=All|Today|Overdue|Upcoming|Done`), `search?q=`, get, create, update, `{id}/complete`, delete

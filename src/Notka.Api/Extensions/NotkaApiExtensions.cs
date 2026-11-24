@@ -8,6 +8,7 @@ using Notka.Api.Endpoints;
 using Notka.Api.ErrorHandling;
 using Notka.Api.Hubs;
 using Notka.Api.Middleware;
+using Notka.Api.Security;
 
 namespace Notka.Api.Extensions
 {
@@ -19,6 +20,7 @@ namespace Notka.Api.Extensions
             var connectionString = configuration.GetConnectionString("Notka") ?? $"Data Source={ResolveDbPath(configuration)}";
 
             services.TryAddSingleton(TimeProvider.System);
+            services.AddSingleton(new ApiTokenHolder(ApiToken.GetOrCreate(configuration)));
             services.AddDbContext<NotkaDbContext>(o => o.UseSqlite(connectionString));
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddApplicationServices(typeof(NotkaApiExtensions).Assembly);
@@ -36,6 +38,7 @@ namespace Notka.Api.Extensions
             app.UseExceptionHandler();
             app.UseStatusCodePages();
             app.UseMiddleware<LocalRequestsOnlyMiddleware>();
+            app.UseMiddleware<ApiTokenMiddleware>();
             TaskEndpoints.Map(app);
             NoteEndpoints.Map(app);
             app.MapHub<ChangesHub>(ChangesHub.Path);

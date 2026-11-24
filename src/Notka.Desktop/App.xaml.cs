@@ -68,7 +68,7 @@ namespace Notka.Desktop
         private void StartUi()
         {
             var exePath = Environment.ProcessPath ?? throw new InvalidOperationException("Process path is unavailable.");
-            var ui = BuildUiServices(_api.Url);
+            var ui = BuildUiServices(_api.Url, _api.Token);
             _ui = ui;
             _viewModel = ui.GetRequiredService<MainViewModel>();
             _window = new MainWindow(_viewModel, new AutostartService(exePath), () => _ = ExitAsync());
@@ -83,15 +83,16 @@ namespace Notka.Desktop
             Program.ActivationHandler = () => _dispatcher?.TryEnqueue(ShowMainWindow);
         }
 
-        private static ServiceProvider BuildUiServices(Uri apiUrl)
+        private static ServiceProvider BuildUiServices(Uri apiUrl, string token)
         {
             var services = new ServiceCollection();
             services.AddHttpClient<INotkaApiClient, NotkaApiClient>(client =>
             {
                 client.BaseAddress = apiUrl;
                 client.Timeout = TimeSpan.FromSeconds(15);
+                client.DefaultRequestHeaders.Authorization = new("Bearer", token);
             });
-            services.AddSingleton<IChangesClient>(_ => new ChangesClient(apiUrl));
+            services.AddSingleton<IChangesClient>(_ => new ChangesClient(apiUrl, token));
             services.AddTransient<MainViewModel>();
             return services.BuildServiceProvider();
         }

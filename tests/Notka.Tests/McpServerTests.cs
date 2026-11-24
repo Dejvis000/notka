@@ -28,6 +28,7 @@ namespace Notka.Tests
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseUrls("http://127.0.0.1:0");
             builder.Configuration["ConnectionStrings:Notka"] = connection;
+            builder.Configuration["Notka:Token"] = TestSupport.Token;
             builder.Services.AddNotkaApi(builder.Configuration);
             _api = builder.Build();
             _api.MapNotkaEndpoints();
@@ -43,14 +44,24 @@ namespace Notka.Tests
             await _keeper.DisposeAsync();
         }
 
-        private static Task<McpClient> StartMcpAsync(string apiUrl) =>
+        private static Task<McpClient> StartMcpAsync(
+            string apiUrl,
+            string? token = TestSupport.Token,
+            string? tokenPath = null,
+            Action<string>? onStandardError = null) =>
             McpClient.CreateAsync(
                 new StdioClientTransport(new StdioClientTransportOptions
                 {
                     Name = "notka",
                     Command = "dotnet",
                     Arguments = [McpDllPath()],
-                    EnvironmentVariables = new Dictionary<string, string?> { ["Notka__ApiUrl"] = apiUrl },
+                    StandardErrorLines = onStandardError,
+                    EnvironmentVariables = new Dictionary<string, string?>
+                    {
+                        ["Notka__ApiUrl"] = apiUrl,
+                        ["Notka__Token"] = token,
+                        ["Notka__TokenPath"] = tokenPath,
+                    },
                 }),
                 cancellationToken: Ct);
 
@@ -160,6 +171,80 @@ namespace Notka.Tests
 
             Assert.True(result.IsError);
             Assert.Contains("zadanie (id 999)", Text(result));
+        }
+
+        [Fact]
+        public async Task A_wrong_token_gives_a_clear_message()
+        {
+            await using var wrong = await StartMcpAsync(_api.Urls.First(), "wrong-token-0123456789abcdef-0123456789abcdef");
+
+            var result = await wrong.CallToolAsync("list_tasks", new Dictionary<string, object?>(), cancellationToken: Ct);
+
+            Assert.True(result.IsError);
+            Assert.Contains("odrzuciła token", Text(result));
+        }
+
+        [Fact]
+        public async Task The_token_is_read_from_the_token_file_when_no_token_is_configured()
+        {
+            var path = Path.Combine(Path.GetTempPath(), $"notka-token-{Guid.NewGuid():N}");
+            await File.WriteAllTextAsync(path, TestSupport.Token + Environment.NewLine, Ct);
+            try
+            {
+                await using var viaFile = await StartMcpAsync(_api.Urls.First(), token: null, tokenPath: path);
+
+                var result = await viaFile.CallToolAsync("list_tasks", new Dictionary<string, object?>(), cancellationToken: Ct);
+
+                Assert.NotEqual(true, result.IsError);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public async Task A_missing_token_file_is_reported_as_the_app_not_running()
+        {
+            var path = Path.Combine(Path.GetTempPath(), $"notka-missing-{Guid.NewGuid():N}");
+            await using var viaFile = await StartMcpAsync(_api.Urls.First(), token: null, tokenPath: path);
+
+            var result = await viaFile.CallToolAsync("list_tasks", new Dictionary<string, object?>(), cancellationToken: Ct);
+
+            Assert.True(result.IsError);
+            Assert.Contains("Aplikacja Notka nie jest uruchomiona", Text(result));
+        }
+
+        [Theory]
+        [InlineData("http://example.com")]
+        [InlineData("http://localhost:5123")]
+        public async Task The_server_refuses_to_send_the_token_to_anything_but_a_loopback_ip_address(string url)
+        {
+            var errors = new List<string>();
+
+            await Assert.ThrowsAnyAsync<Exception>(() => StartMcpAsync(url, onStandardError: line =>
+            {
+                lock (errors)
+                {
+                    errors.Add(line);
+                }
+            }));
+
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+            while (DateTime.UtcNow < deadline && !Joined(errors).Contains("loopback IP address"))
+            {
+                await Task.Delay(50, Ct);
+            }
+
+            Assert.Contains("loopback IP address", Joined(errors));
+        }
+
+        private static string Joined(List<string> lines)
+        {
+            lock (lines)
+            {
+                return string.Join('\n', lines);
+            }
         }
 
         [Fact]

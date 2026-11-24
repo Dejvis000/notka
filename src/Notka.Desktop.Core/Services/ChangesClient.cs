@@ -19,10 +19,10 @@ namespace Notka.Desktop.Services
         private readonly HubConnection _connection;
         private readonly SynchronizationContext? _context = SynchronizationContext.Current;
 
-        public ChangesClient(Uri baseAddress)
+        public ChangesClient(Uri baseAddress, string token)
         {
             _connection = new HubConnectionBuilder()
-                .WithUrl(new Uri(baseAddress, "/hubs/changes"))
+                .WithUrl(new Uri(baseAddress, "/hubs/changes"), options => options.AccessTokenProvider = () => Task.FromResult<string?>(token))
                 .WithAutomaticReconnect()
                 .Build();
             _connection.On<ChangeEvent>("TaskChanged", e => Post(() => TaskChanged?.Invoke(e)));

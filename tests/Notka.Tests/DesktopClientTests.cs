@@ -26,11 +26,14 @@ namespace Notka.Tests
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseTestServer();
             builder.Configuration["ConnectionStrings:Notka"] = connection;
+            builder.Configuration["Notka:Token"] = TestSupport.Token;
             builder.Services.AddNotkaApi(builder.Configuration);
             _app = builder.Build();
             _app.MapNotkaEndpoints();
             await _app.StartAsync(Ct);
-            _client = new NotkaApiClient(_app.GetTestClient());
+            var http = _app.GetTestClient();
+            http.DefaultRequestHeaders.Authorization = new("Bearer", TestSupport.Token);
+            _client = new NotkaApiClient(http);
         }
 
         public async ValueTask DisposeAsync()
@@ -81,6 +84,14 @@ namespace Notka.Tests
             var exception = await Assert.ThrowsAsync<NotkaApiException>(() => _client.DeleteNoteAsync(999, Ct));
 
             Assert.Contains("notatka (id 999)", exception.Message);
+        }
+
+        [Fact]
+        public async Task A_rejected_token_becomes_a_readable_exception()
+        {
+            var exception = await Assert.ThrowsAsync<NotkaApiException>(() => new NotkaApiClient(_app.GetTestClient()).ListNotesAsync(Ct));
+
+            Assert.Contains("odrzuciło token", exception.Message);
         }
 
         [Fact]

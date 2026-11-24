@@ -37,11 +37,13 @@ namespace Notka.Tests
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseTestServer();
             builder.Configuration["ConnectionStrings:Notka"] = connection;
+            builder.Configuration["Notka:Token"] = TestSupport.Token;
             builder.Services.AddNotkaApi(builder.Configuration);
             _app = builder.Build();
             _app.MapNotkaEndpoints();
             await _app.StartAsync(Ct);
             _http = _app.GetTestClient();
+            _http.DefaultRequestHeaders.Authorization = new("Bearer", TestSupport.Token);
         }
 
         public async ValueTask DisposeAsync()
@@ -146,6 +148,54 @@ namespace Notka.Tests
             var response = await _http.SendAsync(request, Ct);
 
             Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("Bearer wrong-token")]
+        [InlineData("Basic dGVzdDp0ZXN0")]
+        [InlineData("Bearer ")]
+        public async Task Requests_without_a_valid_token_are_unauthorized(string? authorization)
+        {
+            using var client = _app.GetTestClient();
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/api/tasks");
+            if (authorization is not null)
+            {
+                request.Headers.TryAddWithoutValidation("Authorization", authorization);
+            }
+
+            var response = await client.SendAsync(request, Ct);
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+            Assert.Contains("Bearer", response.Headers.WwwAuthenticate.ToString());
+            Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        }
+
+        [Fact]
+        public async Task The_token_in_the_query_string_works_only_for_the_hub()
+        {
+            using var client = _app.GetTestClient();
+
+            var rest = await client.GetAsync($"/api/tasks?access_token={TestSupport.Token}", Ct);
+            var hub = await client.PostAsync($"{ChangesHub.Path}/negotiate?negotiateVersion=1&access_token={TestSupport.Token}", null, Ct);
+
+            Assert.Equal(HttpStatusCode.Unauthorized, rest.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, hub.StatusCode);
+        }
+
+        [Fact]
+        public async Task The_hub_rejects_connections_without_a_token()
+        {
+            var server = _app.GetTestServer();
+            await using var hub = new HubConnectionBuilder()
+                .WithUrl(new Uri(server.BaseAddress, ChangesHub.Path), o =>
+                {
+                    o.HttpMessageHandlerFactory = _ => server.CreateHandler();
+                    o.Transports = HttpTransportType.LongPolling;
+                })
+                .Build();
+
+            await Assert.ThrowsAnyAsync<Exception>(() => hub.StartAsync(Ct));
         }
 
         [Theory]
@@ -306,6 +356,7 @@ namespace Notka.Tests
                 {
                     o.HttpMessageHandlerFactory = _ => server.CreateHandler();
                     o.Transports = HttpTransportType.LongPolling;
+                    o.AccessTokenProvider = () => Task.FromResult<string?>(TestSupport.Token);
                 })
                 .AddJsonProtocol(o => o.PayloadSerializerOptions = Json)
                 .Build();

@@ -83,6 +83,11 @@ namespace Notka.Desktop.Services
 
             using (response)
             {
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    throw new NotkaApiException("API Notki odrzuciło token dostępu. Uruchom aplikację ponownie.");
+                }
+
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new NotkaApiException(await DescribeErrorAsync(response, cancellationToken));
