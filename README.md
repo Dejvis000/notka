@@ -29,6 +29,17 @@ Baza migruje się automatycznie przy starcie. API odrzuca żądania z obcym `Hos
 - `/api/notes` - lista, create, update, `{id}/pin`, `{id}/unpin`, delete
 - `/hubs/changes` - SignalR, zdarzenia `TaskChanged` i `NoteChanged`
 
+## Aplikacja desktopowa
+
+```
+dotnet run --project src/Notka.Desktop -p:Platform=x64
+```
+
+Aplikacja uruchamia API na `127.0.0.1:5123` (zmiana: zmienna środowiskowa `Notka__Port`), pokazuje zadania i notatki i działa w trayu:
+zamknięcie okna chowa je, a `Zakończ` w menu traya lub w ustawieniach wyłącza aplikację.
+Ustawienia (ikona koła zębatego) pozwalają włączyć uruchamianie z Windows.
+Tylko jedna instancja: ponowne uruchomienie pokazuje okno działającej aplikacji. Logi: `%LOCALAPPDATA%\Notka\logs`.
+
 ## Serwer MCP dla Claude Desktop
 
 ```
@@ -56,6 +67,7 @@ Gdy aplikacja Notka nie działa, narzędzia zwracają czytelny komunikat.
 - `src/Notka.Core` - modele i DTO
 - `src/Notka.Api` - biblioteka API: EF Core, endpointy, SignalR
 - `src/Notka.Desktop` - aplikacja WinUI 3
+- `src/Notka.Desktop.Core` - klient API, klient SignalR i ViewModele aplikacji desktopowej
 - `src/Notka.Mcp` - serwer MCP dla Claude Desktop
 - `tests/Notka.Tests` - testy xUnit
 

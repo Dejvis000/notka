@@ -1,0 +1,187 @@
+<Window x:Class="Notka.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:Notka.Desktop"
+        xmlns:vm="using:Notka.Desktop.ViewModels"
+        Title="Notka">
+  <Grid x:Name="Root" Loaded="Root_Loaded" ColumnDefinitions="400,*" RowDefinitions="48,*,Auto">
+
+    <Grid x:Name="TitleBarArea" Grid.ColumnSpan="2" ColumnDefinitions="*,144">
+      <TextBlock Text="Notka" VerticalAlignment="Center" Margin="24,0,0,0"
+                 FontSize="14" FontWeight="SemiBold" />
+      <Button HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"
+              Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Ustawienia"
+              AutomationProperties.Name="Ustawienia">
+        <FontIcon FontSize="16" Glyph="&#xE713;" />
+        <Button.Flyout>
+          <MenuFlyout>
+            <ToggleMenuFlyoutItem x:Name="AutostartItem" Text="Uruchamiaj z Windows" Click="Autostart_Click" />
+            <MenuFlyoutSeparator />
+            <MenuFlyoutItem Text="Zakończ Notkę" Click="Exit_Click" />
+          </MenuFlyout>
+        </Button.Flyout>
+      </Button>
+    </Grid>
+
+    <Grid Grid.Row="1" Grid.Column="0" Padding="24,12,20,16" RowSpacing="12"
+          Background="{ThemeResource LayerFillColorDefaultBrush}"
+          RowDefinitions="Auto,Auto,Auto,Auto,*">
+      <TextBlock Text="Zadania" Style="{StaticResource TitleTextBlockStyle}" />
+
+      <SelectorBar Grid.Row="1" x:Name="TabBar" SelectionChanged="TabBar_SelectionChanged">
+        <SelectorBarItem x:Name="TodayItem" Text="Dziś" Tag="Today" IsSelected="True" />
+        <SelectorBarItem Text="Zaległe" Tag="Overdue" />
+        <SelectorBarItem Text="Później" Tag="Upcoming" />
+        <SelectorBarItem Text="Bez terminu" Tag="NoDate" />
+        <SelectorBarItem Text="Zrobione" Tag="Done" />
+      </SelectorBar>
+
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <TextBox x:Name="NewTaskBox" PlaceholderText="Nowe zadanie" MaxLength="500"
+                 Text="{x:Bind ViewModel.Tasks.NewTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 KeyDown="NewTaskBox_KeyDown" />
+        <CalendarDatePicker Grid.Column="1" x:Name="DuePicker" PlaceholderText="Termin"
+                            DateChanged="DuePicker_DateChanged" />
+        <Button Grid.Column="2" Content="Dodaj" Style="{StaticResource AccentButtonStyle}"
+                Click="AddTask_Click" />
+      </Grid>
+
+      <InfoBar Grid.Row="3" Severity="Error" IsClosable="False"
+               IsOpen="{x:Bind local:UiFunctions.HasText(ViewModel.Tasks.Error), Mode=OneWay}"
+               Message="{x:Bind ViewModel.Tasks.Error, Mode=OneWay}" />
+
+      <Grid Grid.Row="4">
+        <ListView ItemsSource="{x:Bind ViewModel.Tasks.Items}" SelectionMode="None">
+          <ListView.ItemContainerStyle>
+            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+              <Setter Property="Padding" Value="0" />
+              <Setter Property="MinHeight" Value="0" />
+              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            </Style>
+          </ListView.ItemContainerStyle>
+          <ListView.ItemTemplate>
+            <DataTemplate x:DataType="vm:TaskRowViewModel">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4" Padding="0,6"
+                    AutomationProperties.Name="{x:Bind Title}">
+                <CheckBox MinWidth="0" Padding="0" VerticalAlignment="Top"
+                          AutomationProperties.Name="Oznacz jako zrobione"
+                          IsChecked="{x:Bind IsDone}"
+                          IsEnabled="{x:Bind local:UiFunctions.Not(IsDone)}"
+                          Command="{x:Bind CompleteCommand}" />
+                <StackPanel Grid.Column="1" Spacing="2">
+                  <TextBlock Text="{x:Bind Title}" TextWrapping="Wrap" />
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="{x:Bind DueText}" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Visibility="{x:Bind local:UiFunctions.VisibleWhenText(DueText)}" />
+                    <TextBlock Text="zaległe" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                               Visibility="{x:Bind local:UiFunctions.VisibleWhen(IsOverdue)}" />
+                    <TextBlock Text="{x:Bind PriorityText}" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                               Visibility="{x:Bind local:UiFunctions.VisibleWhenText(PriorityText)}" />
+                  </StackPanel>
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ListView.ItemTemplate>
+        </ListView>
+        <TextBlock Text="{x:Bind ViewModel.Tasks.EmptyText, Mode=OneWay}" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Visibility="{x:Bind local:UiFunctions.VisibleWhenZero(ViewModel.Tasks.Items.Count), Mode=OneWay}" />
+      </Grid>
+    </Grid>
+
+    <Grid Grid.Row="1" Grid.Column="1" Padding="28,12,28,16" RowSpacing="12" RowDefinitions="Auto,Auto,Auto,*">
+      <Grid ColumnDefinitions="*,260" ColumnSpacing="16">
+        <TextBlock Text="Notatki" Style="{StaticResource TitleTextBlockStyle}" />
+        <TextBox Grid.Column="1" PlaceholderText="Szukaj w notatkach"
+                 Text="{x:Bind ViewModel.Notes.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+      </Grid>
+
+      <TextBox Grid.Row="1" x:Name="NewNoteBox" PlaceholderText="Nowa notatka, Enter dodaje" MaxLength="10000"
+               Text="{x:Bind ViewModel.Notes.NewNoteText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+               KeyDown="NewNoteBox_KeyDown" />
+
+      <InfoBar Grid.Row="2" Severity="Error" IsClosable="False"
+               IsOpen="{x:Bind local:UiFunctions.HasText(ViewModel.Notes.Error), Mode=OneWay}"
+               Message="{x:Bind ViewModel.Notes.Error, Mode=OneWay}" />
+
+      <Grid Grid.Row="3">
+        <GridView ItemsSource="{x:Bind ViewModel.Notes.Visible}" SelectionMode="None">
+          <GridView.ItemTemplate>
+            <DataTemplate x:DataType="vm:NoteViewModel">
+              <Grid Width="232" Height="184" Padding="8,10,10,6" CornerRadius="3"
+                    Background="{x:Bind local:UiFunctions.NoteBrush(Color), Mode=OneWay}"
+                    RowDefinitions="*,Auto">
+                <Grid.Resources>
+                  <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                  <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="TextControlForeground" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="ButtonForeground" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22000000" />
+                  <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33000000" />
+                </Grid.Resources>
+                <TextBox Text="{x:Bind Content, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Segoe Print" FontSize="15" MaxLength="10000"
+                         Padding="6,4" AutomationProperties.Name="Treść notatki"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" LostFocus="Note_LostFocus" />
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="2">
+                  <Button Command="{x:Bind TogglePinCommand}" Background="Transparent" BorderThickness="0"
+                          ToolTipService.ToolTip="{x:Bind local:UiFunctions.PinLabel(Pinned), Mode=OneWay}"
+                          AutomationProperties.Name="{x:Bind local:UiFunctions.PinLabel(Pinned), Mode=OneWay}">
+                    <FontIcon FontSize="14" Glyph="{x:Bind local:UiFunctions.PinGlyph(Pinned), Mode=OneWay}" />
+                  </Button>
+                  <Button Background="Transparent" BorderThickness="0"
+                          ToolTipService.ToolTip="Zmień kolor" AutomationProperties.Name="Zmień kolor">
+                    <FontIcon FontSize="14" Glyph="&#xE790;" />
+                    <Button.Flyout>
+                      <Flyout>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <Button Command="{x:Bind SetColorCommand}" CommandParameter="yellow" Width="28" Height="28"
+                                  ToolTipService.ToolTip="Żółty" AutomationProperties.Name="Żółty"
+                                  Background="{x:Bind local:UiFunctions.NoteBrush('yellow')}" />
+                          <Button Command="{x:Bind SetColorCommand}" CommandParameter="blue" Width="28" Height="28"
+                                  ToolTipService.ToolTip="Niebieski" AutomationProperties.Name="Niebieski"
+                                  Background="{x:Bind local:UiFunctions.NoteBrush('blue')}" />
+                          <Button Command="{x:Bind SetColorCommand}" CommandParameter="green" Width="28" Height="28"
+                                  ToolTipService.ToolTip="Zielony" AutomationProperties.Name="Zielony"
+                                  Background="{x:Bind local:UiFunctions.NoteBrush('green')}" />
+                          <Button Command="{x:Bind SetColorCommand}" CommandParameter="pink" Width="28" Height="28"
+                                  ToolTipService.ToolTip="Różowy" AutomationProperties.Name="Różowy"
+                                  Background="{x:Bind local:UiFunctions.NoteBrush('pink')}" />
+                          <Button Command="{x:Bind SetColorCommand}" CommandParameter="purple" Width="28" Height="28"
+                                  ToolTipService.ToolTip="Fioletowy" AutomationProperties.Name="Fioletowy"
+                                  Background="{x:Bind local:UiFunctions.NoteBrush('purple')}" />
+                        </StackPanel>
+                      </Flyout>
+                    </Button.Flyout>
+                  </Button>
+                  <Button Command="{x:Bind DeleteCommand}" Background="Transparent" BorderThickness="0"
+                          ToolTipService.ToolTip="Usuń notatkę" AutomationProperties.Name="Usuń notatkę">
+                    <FontIcon FontSize="14" Glyph="&#xE74D;" />
+                  </Button>
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </GridView.ItemTemplate>
+        </GridView>
+        <TextBlock Text="{x:Bind ViewModel.Notes.EmptyText, Mode=OneWay}" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Visibility="{x:Bind local:UiFunctions.VisibleWhenZero(ViewModel.Notes.Visible.Count), Mode=OneWay}" />
+      </Grid>
+    </Grid>
+
+    <InfoBar Grid.Row="2" Grid.ColumnSpan="2" Severity="Warning" IsClosable="False"
+             IsOpen="{x:Bind local:UiFunctions.HasText(ViewModel.Status), Mode=OneWay}"
+             Message="{x:Bind ViewModel.Status, Mode=OneWay}" />
+  </Grid>
+</Window>
