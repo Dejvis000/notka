@@ -29,6 +29,28 @@ Baza migruje się automatycznie przy starcie. API odrzuca żądania z obcym `Hos
 - `/api/notes` - lista, create, update, `{id}/pin`, `{id}/unpin`, delete
 - `/hubs/changes` - SignalR, zdarzenia `TaskChanged` i `NoteChanged`
 
+## Serwer MCP dla Claude Desktop
+
+```
+dotnet publish src/Notka.Mcp -c Release -o artifacts/mcp
+```
+
+W `%APPDATA%\Claude\claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "notka": {
+      "command": "C:\\sciezka\\do\\artifacts\\mcp\\Notka.Mcp.exe"
+    }
+  }
+}
+```
+
+Adres API to domyślnie `http://127.0.0.1:5123`; zmienia go zmienna środowiskowa `Notka__ApiUrl`.
+Narzędzia: `add_task`, `list_tasks`, `search_tasks`, `complete_task`, `update_task`, `create_note`, `list_notes`.
+Gdy aplikacja Notka nie działa, narzędzia zwracają czytelny komunikat.
+
 ## Struktura
 
 - `src/Notka.Core` - modele i DTO

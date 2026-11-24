@@ -13,6 +13,7 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <ProjectReference Include="..\..\src\Notka.Core\Notka.Core.csproj" />
     <ProjectReference Include="..\..\src\Notka.Api\Notka.Api.csproj" />
+    <ProjectReference Include="..\..\src\Notka.Mcp\Notka.Mcp.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

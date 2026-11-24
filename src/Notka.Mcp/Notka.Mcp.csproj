@@ -5,4 +5,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Notka.Core\Notka.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
 </Project>
