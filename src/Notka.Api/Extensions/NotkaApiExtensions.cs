@@ -7,6 +7,7 @@ using Notka.Api.Data;
 using Notka.Api.Endpoints;
 using Notka.Api.ErrorHandling;
 using Notka.Api.Hubs;
+using Notka.Api.Middleware;
 
 namespace Notka.Api.Extensions
 {
@@ -34,6 +35,7 @@ namespace Notka.Api.Extensions
         {
             app.UseExceptionHandler();
             app.UseStatusCodePages();
+            app.UseMiddleware<LocalRequestsOnlyMiddleware>();
             TaskEndpoints.Map(app);
             NoteEndpoints.Map(app);
             app.MapHub<ChangesHub>(ChangesHub.Path);

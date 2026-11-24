@@ -128,6 +128,40 @@ namespace Notka.Tests
             Assert.Empty(await Titles("/api/tasks"));
         }
 
+        [Theory]
+        [InlineData("Host", "evil.example")]
+        [InlineData("Origin", "https://evil.example")]
+        public async Task Requests_from_foreign_hosts_or_browser_origins_are_forbidden(string header, string value)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/api/tasks");
+            if (header == "Host")
+            {
+                request.Headers.Host = value;
+            }
+            else
+            {
+                request.Headers.Add(header, value);
+            }
+
+            var response = await _http.SendAsync(request, Ct);
+
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData("localhost")]
+        [InlineData("127.0.0.1:5123")]
+        [InlineData("[::1]:5123")]
+        public async Task Requests_to_loopback_hosts_are_allowed(string host)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/api/tasks");
+            request.Headers.Host = host;
+
+            var response = await _http.SendAsync(request, Ct);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
         [Fact]
         public async Task A_missing_task_stays_404_for_clients_that_do_not_accept_JSON()
         {

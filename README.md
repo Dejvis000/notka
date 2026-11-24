@@ -21,7 +21,7 @@ dotnet test --solution Notka.sln
 | `Notka:DbPath` | plik SQLite, domyślnie `%LOCALAPPDATA%\Notka\notka.db` |
 | `ConnectionStrings:Notka` | pełny connection string, nadpisuje `Notka:DbPath` |
 
-Baza migruje się automatycznie przy starcie.
+Baza migruje się automatycznie przy starcie. API odrzuca żądania z obcym `Host` lub z nagłówkiem `Origin`.
 
 ## API
 
