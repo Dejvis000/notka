@@ -4,9 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Notka.Desktop.Services;
 using Notka.Desktop.ViewModels;
-using Serilog;
 using Windows.Graphics;
 using Windows.System;
 using Windows.Win32;
@@ -21,14 +19,10 @@ namespace Notka.Desktop
         private const int MinWidth = 900;
         private const int MinHeight = 520;
 
-        private readonly AutostartService _autostart;
-        private readonly Action _exit;
-
-        public MainWindow(MainViewModel viewModel, AutostartService autostart, Action exit)
+        public MainWindow(MainViewModel viewModel, SettingsViewModel settings)
         {
             ViewModel = viewModel;
-            _autostart = autostart;
-            _exit = exit;
+            Settings = settings;
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(TitleBarArea);
@@ -36,11 +30,12 @@ namespace Notka.Desktop
             AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
             ApplySize();
             AppWindow.Closing += OnClosing;
-            AutostartItem.IsChecked = _autostart.IsEnabled;
             ViewModel.Tasks.PropertyChanged += OnTasksPropertyChanged;
         }
 
         public MainViewModel ViewModel { get; }
+
+        public SettingsViewModel Settings { get; }
 
         public bool AllowClose { get; set; }
 
@@ -87,27 +82,14 @@ namespace Notka.Desktop
             }
         }
 
-        private void Autostart_Click(object sender, RoutedEventArgs e)
+        private void Escape_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            try
+            if (Settings.IsOpen)
             {
-                if (AutostartItem.IsChecked)
-                {
-                    _autostart.Enable();
-                }
-                else
-                {
-                    _autostart.Disable();
-                }
-            }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
-            {
-                Log.Warning(ex, "Could not change the autostart setting");
-                AutostartItem.IsChecked = _autostart.IsEnabled;
+                Settings.CloseCommand.Execute(null);
+                args.Handled = true;
             }
         }
-
-        private void Exit_Click(object sender, RoutedEventArgs e) => _exit();
 
         private async void Root_Loaded(object sender, RoutedEventArgs e) => await ViewModel.InitializeAsync();
 

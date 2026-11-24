@@ -23,6 +23,8 @@ namespace Notka.Desktop
 
         public static Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
+        public static Visibility VisibleWhenNot(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
+
         public static Visibility VisibleWhenText(string? value) => string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
 
         public static Visibility VisibleWhenZero(int count) => count == 0 ? Visibility.Visible : Visibility.Collapsed;

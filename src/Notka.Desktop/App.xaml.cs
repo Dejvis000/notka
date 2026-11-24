@@ -14,7 +14,7 @@ using Windows.Graphics;
 
 namespace Notka.Desktop
 {
-    public partial class App : Application
+    public partial class App : Application, IAppLifetime
     {
         private readonly ApiHost _api = new();
         private DispatcherQueue? _dispatcher;
@@ -71,10 +71,10 @@ namespace Notka.Desktop
         private void StartUi()
         {
             var exePath = Environment.ProcessPath ?? throw new InvalidOperationException("Process path is unavailable.");
-            var ui = BuildUiServices(_api.Url, _api.Token);
+            var ui = BuildUiServices(_api.Url, _api.Token, new AutostartService(exePath), this);
             _ui = ui;
             _viewModel = ui.GetRequiredService<MainViewModel>();
-            _window = new MainWindow(_viewModel, new AutostartService(exePath), () => _ = ExitAsync());
+            _window = new MainWindow(_viewModel, ui.GetRequiredService<SettingsViewModel>());
             _window.Closed += async (_, _) => await ShutdownAsync();
 
             CreateTray();
@@ -86,9 +86,14 @@ namespace Notka.Desktop
             Program.ActivationHandler = () => _dispatcher?.TryEnqueue(ShowMainWindow);
         }
 
-        private static ServiceProvider BuildUiServices(Uri apiUrl, string token)
+        public void RequestExit() => _ = ExitAsync();
+
+        private static ServiceProvider BuildUiServices(Uri apiUrl, string token, IAutostart autostart, IAppLifetime lifetime)
         {
             var services = new ServiceCollection();
+            services.AddSingleton(autostart);
+            services.AddSingleton(lifetime);
+            services.AddSingleton<SettingsViewModel>();
             services.AddHttpClient<INotkaApiClient, NotkaApiClient>(client =>
             {
                 client.BaseAddress = apiUrl;

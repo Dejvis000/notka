@@ -3,8 +3,17 @@ using Microsoft.Win32;
 
 namespace Notka.Desktop.Services
 {
+    public interface IAutostart
+    {
+        bool IsEnabled { get; }
+
+        void Enable();
+
+        void Disable();
+    }
+
     [SupportedOSPlatform("windows")]
-    public sealed class AutostartService(string exePath, string runKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run")
+    public sealed class AutostartService(string exePath, string runKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run") : IAutostart
     {
         public const string TrayArgument = "--tray";
 

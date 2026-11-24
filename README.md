@@ -42,7 +42,7 @@ dotnet run --project src/Notka.Desktop -p:Platform=x64
 
 Aplikacja uruchamia API na `127.0.0.1:5123` (zmiana: zmienna środowiskowa `Notka__Port`), pokazuje zadania i notatki i działa w trayu:
 zamknięcie okna chowa je, a `Zakończ` w menu traya lub w ustawieniach wyłącza aplikację.
-Ustawienia (ikona koła zębatego) pozwalają włączyć uruchamianie z Windows.
+Zębatka w pasku tytułu otwiera stronę ustawień (uruchamianie z Windows, zamknięcie aplikacji); Esc lub strzałka wracają do głównego widoku.
 Tylko jedna instancja: ponowne uruchomienie pokazuje okno działającej aplikacji. Logi: `%LOCALAPPDATA%\Notka\logs`.
 
 ## Serwer MCP dla Claude Desktop
