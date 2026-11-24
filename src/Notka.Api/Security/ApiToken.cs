@@ -10,6 +10,8 @@ namespace Notka.Api.Security
     {
         public const int MinLength = 32;
 
+        private const int MoveAttempts = 5;
+
         public static string DefaultPath() =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Notka", "api-token");
 
@@ -82,8 +84,24 @@ namespace Notka.Api.Security
             var token = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
             var temporary = path + ".tmp";
             File.WriteAllText(temporary, token);
-            File.Move(temporary, path, overwrite: true);
+            MoveWithRetry(temporary, path);
             return token;
+        }
+
+        private static void MoveWithRetry(string source, string destination)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    File.Move(source, destination, overwrite: true);
+                    return;
+                }
+                catch (Exception ex) when (attempt < MoveAttempts && ex is IOException or UnauthorizedAccessException)
+                {
+                    Thread.Sleep(50);
+                }
+            }
         }
     }
 }

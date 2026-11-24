@@ -69,6 +69,24 @@ namespace Notka.Tests
         }
 
         [Fact]
+        public async Task Rotating_waits_for_a_reader_that_briefly_holds_the_file()
+        {
+            var config = Config(("Notka:TokenPath", TokenPath));
+            var first = ApiToken.CreateNew(config);
+            var reader = new FileStream(TokenPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(80);
+                reader.Dispose();
+            }, TestContext.Current.CancellationToken);
+
+            var second = ApiToken.CreateNew(config);
+
+            Assert.NotEqual(first.Value, second.Value);
+            Assert.Equal(second.Value, File.ReadAllText(TokenPath));
+        }
+
+        [Fact]
         public void Deleting_a_token_removes_only_the_file_that_still_holds_it()
         {
             var config = Config(("Notka:TokenPath", TokenPath));

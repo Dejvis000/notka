@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using CommunityToolkit.Mvvm.Input;
 using H.NotifyIcon;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,8 +48,10 @@ namespace Notka.Desktop
             catch (Exception ex)
             {
                 Log.Error(ex, "Could not start the API host");
-                ShowStartupError("Nie udało się uruchomić Notki. Port jest prawdopodobnie zajęty przez inną aplikację. " +
-                    "Ustaw inny port w zmiennej środowiskowej Notka__Port i uruchom aplikację ponownie.");
+                ShowStartupError(ex.GetBaseException() is SocketException { SocketErrorCode: SocketError.AddressAlreadyInUse }
+                    ? "Nie udało się uruchomić Notki. Port jest zajęty przez inną aplikację. " +
+                        "Ustaw inny port w zmiennej środowiskowej Notka__Port i uruchom aplikację ponownie."
+                    : "Nie udało się uruchomić Notki. Uruchom aplikację ponownie.");
                 return;
             }
 
@@ -174,12 +177,19 @@ namespace Notka.Desktop
                 {
                     await _ui.DisposeAsync();
                 }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error while disposing the UI services");
+            }
 
+            try
+            {
                 await _api.StopAsync();
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error while shutting down");
+                Log.Error(ex, "Error while stopping the API host");
             }
             finally
             {

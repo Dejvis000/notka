@@ -22,16 +22,30 @@ namespace Notka.Desktop
         {
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { ContentRootPath = AppContext.BaseDirectory });
             _issued = ApiToken.CreateNew(builder.Configuration);
-            builder.Configuration["Notka:Token"] = _issued.Value;
-            var port = builder.Configuration.GetValue("Notka:Port", 5123);
-            builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
-            builder.Host.UseSerilog();
-            builder.Services.AddNotkaApi(builder.Configuration);
+            try
+            {
+                builder.Configuration["Notka:Token"] = _issued.Value;
+                var port = builder.Configuration.GetValue("Notka:Port", 5123);
+                builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
+                builder.Host.UseSerilog();
+                builder.Services.AddNotkaApi(builder.Configuration);
 
-            _app = builder.Build();
-            _app.MapNotkaEndpoints();
-            await _app.StartAsync();
-            Url = new Uri($"http://127.0.0.1:{port}");
+                _app = builder.Build();
+                _app.MapNotkaEndpoints();
+                await _app.StartAsync();
+                Url = new Uri($"http://127.0.0.1:{port}");
+            }
+            catch
+            {
+                ApiToken.Delete(_issued);
+                if (_app is not null)
+                {
+                    await _app.DisposeAsync();
+                    _app = null;
+                }
+
+                throw;
+            }
         }
 
         public async Task StopAsync()

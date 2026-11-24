@@ -24,7 +24,9 @@ namespace Notka.Mcp
                 ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Notka", "api-token");
             try
             {
-                return File.ReadAllText(path).Trim();
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream);
+                return reader.ReadToEnd().Trim();
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
