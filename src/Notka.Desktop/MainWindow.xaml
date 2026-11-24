@@ -4,7 +4,7 @@
         xmlns:local="using:Notka.Desktop"
         xmlns:vm="using:Notka.Desktop.ViewModels"
         Title="Notka">
-  <Grid x:Name="Root" Loaded="Root_Loaded" ColumnDefinitions="400,*" RowDefinitions="48,*,Auto">
+  <Grid x:Name="Root" ColumnDefinitions="400,*" RowDefinitions="48,*,Auto">
     <Grid.KeyboardAccelerators>
       <KeyboardAccelerator Key="Escape" Invoked="Escape_Invoked" />
     </Grid.KeyboardAccelerators>
@@ -189,7 +189,16 @@
           <TextBlock Text="Ustawienia" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center" />
         </StackPanel>
         <ToggleSwitch Header="Uruchamiaj z Windows" OnContent="Włączone" OffContent="Wyłączone"
+                      AutomationProperties.Name="Uruchamiaj z Windows"
                       IsOn="{x:Bind Settings.StartWithWindows, Mode=TwoWay}" />
+        <StackPanel Spacing="4">
+          <ToggleSwitch Header="Pasek przy zegarze" OnContent="Pokazuj" OffContent="Ukryty"
+                        AutomationProperties.Name="Pasek przy zegarze"
+                        IsOn="{x:Bind Settings.ShowStrip, Mode=TwoWay}" />
+          <TextBlock Text="{x:Bind Settings.StripStatus, Mode=OneWay}" TextWrapping="Wrap"
+                     Style="{StaticResource CaptionTextBlockStyle}"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
         <InfoBar Severity="Error" IsClosable="False"
                  IsOpen="{x:Bind local:UiFunctions.HasText(Settings.Error), Mode=OneWay}"
                  Message="{x:Bind Settings.Error, Mode=OneWay}" />

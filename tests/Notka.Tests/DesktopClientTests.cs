@@ -87,6 +87,20 @@ namespace Notka.Tests
         }
 
         [Fact]
+        public async Task The_today_summary_counts_todays_and_overdue_tasks_from_the_real_API()
+        {
+            var today = DateTime.Today;
+            await _client.CreateTaskAsync(new TaskRequest { Title = "Panel Wycen", DueAt = today.AddHours(23).AddMinutes(30) }, Ct);
+            await _client.CreateTaskAsync(new TaskRequest { Title = "Stare", DueAt = today.AddDays(-1) }, Ct);
+
+            var content = await new Notka.Desktop.Taskbar.TodaySummary(_client, TimeProvider.System).LoadAsync(Ct);
+
+            Assert.Contains("1 · ", content.Text);
+            Assert.Contains("Panel Wycen", content.Text);
+            Assert.Contains("! 1", content.Text);
+        }
+
+        [Fact]
         public async Task A_rejected_token_becomes_a_readable_exception()
         {
             var exception = await Assert.ThrowsAsync<NotkaApiException>(() => new NotkaApiClient(_app.GetTestClient()).ListNotesAsync(Ct));

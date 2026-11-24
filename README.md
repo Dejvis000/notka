@@ -43,6 +43,10 @@ dotnet run --project src/Notka.Desktop -p:Platform=x64
 Aplikacja uruchamia API na `127.0.0.1:5123` (zmiana: zmienna środowiskowa `Notka__Port`), pokazuje zadania i notatki i działa w trayu:
 zamknięcie okna chowa je, a `Zakończ` w menu traya lub w ustawieniach wyłącza aplikację.
 Zębatka w pasku tytułu otwiera stronę ustawień (uruchamianie z Windows, zamknięcie aplikacji); Esc lub strzałka wracają do głównego widoku.
+Obok zegara (na lewo od obszaru powiadomień, przy przycisku Widgets omijanym automatycznie) wyświetla się pasek z liczbą
+zadań na dziś, najbliższym zadaniem i liczbą zaległych; kliknięcie otwiera aplikację, najechanie pokazuje listę
+zadań na dziś, a treść jest też w podpowiedzi ikony w trayu. Pasek ukrywa się przy pełnym ekranie i gdy brakuje miejsca,
+a wyłącza go przełącznik „Pasek przy zegarze” w ustawieniach.
 Tylko jedna instancja: ponowne uruchomienie pokazuje okno działającej aplikacji. Logi: `%LOCALAPPDATA%\Notka\logs`.
 
 ## Serwer MCP dla Claude Desktop

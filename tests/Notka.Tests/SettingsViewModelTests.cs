@@ -1,14 +1,59 @@
 using Notka.Desktop.Services;
+using Notka.Desktop.Taskbar;
 using Notka.Desktop.ViewModels;
 
 namespace Notka.Tests
 {
-    public sealed class SettingsViewModelTests
+    public sealed class SettingsViewModelTests : IDisposable
     {
         private readonly FakeAutostart _autostart = new();
         private readonly FakeLifetime _lifetime = new();
 
-        private SettingsViewModel Create() => new(_autostart, _lifetime);
+        private readonly string _settingsPath = Path.Combine(Path.GetTempPath(), "notka-tests", $"settings-{Guid.NewGuid():N}.json");
+
+        public void Dispose()
+        {
+            File.Delete(_settingsPath);
+            File.Delete(_settingsPath + ".tmp");
+        }
+
+        private SettingsViewModel Create() => new(_autostart, _lifetime, AppSettings.Load(_settingsPath));
+
+        [Fact]
+        public void The_strip_switch_is_saved_reloaded_and_announced()
+        {
+            var settings = Create();
+            var announced = new List<bool>();
+            settings.ShowStripChanged += announced.Add;
+
+            settings.ShowStrip = false;
+
+            Assert.Equal([false], announced);
+            Assert.False(Create().ShowStrip);
+            Assert.Equal("Pasek jest wyłączony.", settings.StripStatus);
+        }
+
+        [Fact]
+        public void The_strip_is_on_by_default_and_reports_its_state()
+        {
+            var settings = Create();
+            Assert.True(settings.ShowStrip);
+
+            settings.ReportStripState(StripState.Visible);
+            Assert.Contains("widoczny", settings.StripStatus);
+
+            settings.ReportStripState(StripState.Unavailable);
+            Assert.Contains("niedostępny", settings.StripStatus);
+        }
+
+        [Fact]
+        public void A_corrupt_settings_file_falls_back_to_defaults()
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_settingsPath)!);
+            File.WriteAllText(_settingsPath, "{ not json");
+
+            Assert.True(Create().ShowStrip);
+        }
 
         [Fact]
         public void The_gear_toggles_between_the_main_view_and_the_settings_view()

@@ -91,8 +91,6 @@ namespace Notka.Desktop
             }
         }
 
-        private async void Root_Loaded(object sender, RoutedEventArgs e) => await ViewModel.InitializeAsync();
-
         private void TabBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
         {
             if (sender.SelectedItem?.Tag is string tag && Enum.TryParse<TaskTab>(tag, out var tab))

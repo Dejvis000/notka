@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Notka.Desktop.Services;
+using Notka.Desktop.Taskbar;
 using Notka.Desktop.ViewModels;
 using Serilog;
 using Windows.Graphics;
@@ -22,6 +23,7 @@ namespace Notka.Desktop
         private MainViewModel? _viewModel;
         private MainWindow? _window;
         private TaskbarIcon? _tray;
+        private TaskbarStripController? _strip;
         private bool _exiting;
         private DateTime? _exitWarnedAt;
         private bool _shutDown;
@@ -78,6 +80,15 @@ namespace Notka.Desktop
             _window.Closed += async (_, _) => await ShutdownAsync();
 
             CreateTray();
+            _strip = new TaskbarStripController(
+                new TodaySummary(ui.GetRequiredService<INotkaApiClient>(), TimeProvider.System),
+                ui.GetRequiredService<IChangesClient>(),
+                ui.GetRequiredService<SettingsViewModel>(),
+                _dispatcher!,
+                ShowMainWindow,
+                tooltip => _tray!.ToolTipText = tooltip);
+            _strip.Start();
+            _ = InitializeViewModelAsync();
             if (!Environment.GetCommandLineArgs().Contains(AutostartService.TrayArgument))
             {
                 _window.Activate();
@@ -88,11 +99,24 @@ namespace Notka.Desktop
 
         public void RequestExit() => _ = ExitAsync();
 
+        private async Task InitializeViewModelAsync()
+        {
+            try
+            {
+                await _viewModel!.InitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Could not initialize the view models");
+            }
+        }
+
         private static ServiceProvider BuildUiServices(Uri apiUrl, string token, IAutostart autostart, IAppLifetime lifetime)
         {
             var services = new ServiceCollection();
             services.AddSingleton(autostart);
             services.AddSingleton(lifetime);
+            services.AddSingleton(AppSettings.Load(AppSettings.DefaultPath()));
             services.AddSingleton<SettingsViewModel>();
             services.AddHttpClient<INotkaApiClient, NotkaApiClient>(client =>
             {
@@ -176,6 +200,15 @@ namespace Notka.Desktop
             }
 
             _shutDown = true;
+            try
+            {
+                _strip?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error while disposing the taskbar strip");
+            }
+
             try
             {
                 if (_ui is not null)
