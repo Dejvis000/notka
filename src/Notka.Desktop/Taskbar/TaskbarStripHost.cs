@@ -110,7 +110,11 @@ namespace Notka.Desktop.Taskbar
             Change(snapshot => snapshot with { Content = content, LightTheme = lightTheme });
         }
 
-        public void SetEnabled(bool enabled) => Change(snapshot => snapshot with { Enabled = enabled });
+        public void SetEnabled(bool enabled)
+        {
+            _probe.SetEnabled(enabled);
+            Change(snapshot => snapshot with { Enabled = enabled });
+        }
 
         public void SetBackground(bool background) => Change(snapshot => snapshot with { Background = background });
 

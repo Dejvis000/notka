@@ -13,6 +13,8 @@ namespace Notka.Desktop.Taskbar
     {
         private const int MaxDepth = 6;
         private static readonly TimeSpan Interval = TimeSpan.FromSeconds(2);
+        private const int CalmScansBeforeBackoff = 3;
+        private static readonly TimeSpan CalmInterval = TimeSpan.FromSeconds(4);
         private static readonly TimeSpan BurstInterval = TimeSpan.FromMilliseconds(300);
         private static readonly TimeSpan BurstLength = TimeSpan.FromMilliseconds(2500);
         private static readonly IReadOnlyDictionary<IntPtr, TaskbarLayout> NoLayouts = new Dictionary<IntPtr, TaskbarLayout>();
@@ -22,7 +24,9 @@ namespace Notka.Desktop.Taskbar
         private readonly AutoResetEvent _poke = new(false);
         private volatile IReadOnlyDictionary<IntPtr, TaskbarLayout> _layouts = NoLayouts;
         private volatile bool _disposed;
+        private volatile bool _enabled = true;
         private long _burstUntil;
+        private int _calmScans;
 
         public TaskbarProbe()
         {
@@ -41,8 +45,24 @@ namespace Notka.Desktop.Taskbar
             }
         }
 
+        public void SetEnabled(bool enabled)
+        {
+            _enabled = enabled;
+            if (!enabled)
+            {
+                _layouts = NoLayouts;
+            }
+
+            Poke();
+        }
+
         public void Burst()
         {
+            if (!_enabled)
+            {
+                return;
+            }
+
             var wasIdle = Environment.TickCount64 >= Interlocked.Read(ref _burstUntil);
             Interlocked.Exchange(ref _burstUntil, Environment.TickCount64 + (long)BurstLength.TotalMilliseconds);
             if (wasIdle)
@@ -92,9 +112,19 @@ namespace Notka.Desktop.Taskbar
                 var automation = (IUIAutomation)new CUIAutomation();
                 do
                 {
-                    var scanned = Scan(automation);
-                    if (!scanned.OrderBy(p => p.Key).SequenceEqual(_layouts.OrderBy(p => p.Key)))
+                    if (!_enabled)
                     {
+                        continue;
+                    }
+
+                    var scanned = Scan(automation);
+                    if (scanned.OrderBy(p => p.Key).SequenceEqual(_layouts.OrderBy(p => p.Key)))
+                    {
+                        _calmScans++;
+                    }
+                    else
+                    {
+                        _calmScans = 0;
                         Log.Information("Taskbar layout {Layouts}", scanned.Select(p => $"{p.Key}: {p.Value}"));
                     }
 
@@ -113,7 +143,21 @@ namespace Notka.Desktop.Taskbar
             }
         }
 
-        private TimeSpan NextWait() => Environment.TickCount64 < Interlocked.Read(ref _burstUntil) ? BurstInterval : Interval;
+        private TimeSpan NextWait()
+        {
+            if (!_enabled)
+            {
+                return Timeout.InfiniteTimeSpan;
+            }
+
+            if (Environment.TickCount64 < Interlocked.Read(ref _burstUntil))
+            {
+                _calmScans = 0;
+                return BurstInterval;
+            }
+
+            return _calmScans >= CalmScansBeforeBackoff ? CalmInterval : Interval;
+        }
 
         private static IReadOnlyDictionary<IntPtr, TaskbarLayout> Scan(IUIAutomation automation)
         {
