@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
-  pull_request:
 
 permissions:
   contents: read
@@ -33,6 +32,14 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require a commit on main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$env:GITHUB_SHA" origin/main
+          if ($LASTEXITCODE -ne 0) { throw "Releases are built only from commits on main." }
 
       - uses: actions/setup-dotnet@v4
         with:
