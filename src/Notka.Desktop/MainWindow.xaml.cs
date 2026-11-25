@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Notka.Core;
 using Notka.Desktop.Updates;
 using Notka.Desktop.ViewModels;
 using Windows.Graphics;
@@ -36,6 +37,19 @@ namespace Notka.Desktop
             AppWindow.Closing += OnClosing;
             ViewModel.Tasks.PropertyChanged += OnTasksPropertyChanged;
             WindowMode.PropertyChanged += OnWindowModeChanged;
+            Settings.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(SettingsViewModel.IsOpen) && Settings.IsOpen)
+                {
+                    UiPerf.UntilIdle("ui.settingsOpen", DispatcherQueue);
+                }
+            };
+            if (DueButton.Flyout is { } flyout)
+            {
+                var opening = 0L;
+                flyout.Opening += (_, _) => opening = System.Diagnostics.Stopwatch.GetTimestamp();
+                flyout.Opened += (_, _) => Perf.Recorder?.Record("ui.dueFlyoutOpen", System.Diagnostics.Stopwatch.GetElapsedTime(opening).TotalMilliseconds);
+            }
         }
 
         public MainViewModel ViewModel { get; }
@@ -195,6 +209,7 @@ namespace Notka.Desktop
         {
             if (sender.SelectedItem?.Tag is string tag && Enum.TryParse<TaskTab>(tag, out var tab))
             {
+                UiPerf.UntilIdle("ui.tabSwitch", DispatcherQueue);
                 ViewModel.Tasks.SelectedTab = tab;
             }
         }
@@ -359,6 +374,7 @@ namespace Notka.Desktop
 
         private async Task AddTaskAsync()
         {
+            using var scope = Perf.Measure("ui.addTask");
             await ViewModel.Tasks.AddAsync();
             if (!ViewModel.Tasks.NewDueDate.HasValue && !ViewModel.Tasks.NewDueTime.HasValue)
             {

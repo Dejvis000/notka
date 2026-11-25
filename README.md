@@ -13,6 +13,7 @@ Private tasks and sticky notes for Windows 11, with a live summary next to the t
 - **AI agents**: a bundled MCP server lets Claude Desktop, Claude Code, Cursor and others add and read tasks and notes. A setting switches it off.
 - **Updates** from GitHub Releases, installed on click, with a checksum check and rollback.
 - **Local only**: data lives in a SQLite file, and the API listens on `127.0.0.1` behind a per-launch token.
+- **Timing log**: `%LOCALAPPDATA%\Notka\logs\perf-*.log` keeps startup timings, slow operations and a per-minute summary (request and UI action durations, CPU, memory). It records names and numbers only, never task or note text, and stays on your machine.
 
 | Compact window | Taskbar strip | Reminder |
 |---|---|---|

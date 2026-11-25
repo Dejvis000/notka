@@ -11,6 +11,7 @@ namespace Notka.Desktop
         [STAThread]
         private static int Main(string[] args)
         {
+            PerfLog.MarkMain();
             WinRT.ComWrappersSupport.InitializeComWrappers();
             if (!IsFirstInstance())
             {

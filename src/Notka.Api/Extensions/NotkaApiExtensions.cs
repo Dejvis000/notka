@@ -9,6 +9,7 @@ using Notka.Api.ErrorHandling;
 using Notka.Api.Hubs;
 using Notka.Api.Middleware;
 using Notka.Api.Security;
+using Notka.Core;
 
 namespace Notka.Api.Extensions
 {
@@ -36,6 +37,11 @@ namespace Notka.Api.Extensions
         /// <summary>Adds the exception handler and maps the REST endpoints and the SignalR hub.</summary>
         public static WebApplication MapNotkaEndpoints(this WebApplication app)
         {
+            if (app.Services.GetService<PerfRecorder>() is { } recorder)
+            {
+                app.UseMiddleware<PerfMiddleware>(recorder);
+            }
+
             app.UseExceptionHandler();
             app.UseStatusCodePages();
             app.UseMiddleware<LocalRequestsOnlyMiddleware>();

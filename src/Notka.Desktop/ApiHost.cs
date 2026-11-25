@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Notka.Api.Extensions;
 using Notka.Api.Security;
+using Notka.Core;
 using Serilog;
 
 namespace Notka.Desktop
@@ -37,6 +38,10 @@ namespace Notka.Desktop
                 builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
                 builder.Host.UseSerilog();
                 builder.Services.AddNotkaApi(builder.Configuration);
+                if (Perf.Recorder is { } recorder)
+                {
+                    builder.Services.AddSingleton(recorder);
+                }
 
                 _app = builder.Build();
                 _app.Services.GetRequiredService<AgentAccess>().Allowed = allowAgents;

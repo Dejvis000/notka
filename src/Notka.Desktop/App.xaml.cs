@@ -47,12 +47,16 @@ namespace Notka.Desktop
 
         protected override async void OnLaunched(LaunchActivatedEventArgs args)
         {
+            PerfLog.Mark("onLaunched");
             ConfigureLogging();
+            PerfLog.Start();
+            PerfLog.Mark("logging");
             _dispatcher = DispatcherQueue.GetForCurrentThread();
 
             try
             {
                 await _api.StartAsync(AppSettings.Load(AppSettings.DefaultPath()).AllowAgents);
+                PerfLog.Mark("api");
             }
             catch (Exception ex)
             {
@@ -67,6 +71,7 @@ namespace Notka.Desktop
             try
             {
                 StartUi();
+                PerfLog.Mark("ui");
             }
             catch (Exception ex)
             {
@@ -118,6 +123,7 @@ namespace Notka.Desktop
             if (!startHidden)
             {
                 _window.Activate();
+                PerfLog.Mark("windowActivated");
             }
 
             Program.ActivationHandler = () => _dispatcher?.TryEnqueue(ShowMainWindow);
@@ -130,6 +136,7 @@ namespace Notka.Desktop
             try
             {
                 await _viewModel!.InitializeAsync();
+                PerfLog.Mark("firstData");
             }
             catch (Exception ex)
             {
@@ -148,12 +155,13 @@ namespace Notka.Desktop
             AddUpdates(services);
             services.AddSingleton<SettingsViewModel>();
             services.AddSingleton<WindowModeViewModel>();
+            services.AddTransient<PerfHandler>();
             services.AddHttpClient<INotkaApiClient, NotkaApiClient>(client =>
             {
                 client.BaseAddress = apiUrl;
                 client.Timeout = TimeSpan.FromSeconds(15);
                 client.DefaultRequestHeaders.Authorization = new("Bearer", token);
-            });
+            }).AddHttpMessageHandler<PerfHandler>();
             services.AddSingleton<IChangesClient>(_ => new ChangesClient(apiUrl, token));
             services.AddTransient<MainViewModel>();
             return services.BuildServiceProvider();
@@ -266,6 +274,7 @@ namespace Notka.Desktop
                 return;
             }
 
+            UiPerf.UntilIdle("ui.showWindow", _dispatcher);
             _window.AppWindow.Show();
             _window.Activate();
             ForegroundWindow.Bring(WinRT.Interop.WindowNative.GetWindowHandle(_window));
@@ -316,6 +325,7 @@ namespace Notka.Desktop
 
             _shutDown = true;
             _desktopNotes?.Shutdown();
+            PerfLog.Stop();
             foreach (var timer in _updateTimers)
             {
                 timer.Stop();

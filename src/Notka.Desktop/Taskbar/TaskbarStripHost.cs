@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Notka.Core;
 using Serilog;
 
 namespace Notka.Desktop.Taskbar
@@ -299,6 +300,7 @@ namespace Notka.Desktop.Taskbar
 
         private void Apply(bool force)
         {
+            using var scope = Perf.Measure("strip.apply");
             Snapshot snapshot;
             lock (_gate)
             {
@@ -492,14 +494,14 @@ namespace Notka.Desktop.Taskbar
             {
                 surface.Renderer.Render(snapshot.Content.Text, snapshot.LightTheme, surface.Hover, snapshot.Background, rect.Width, rect.Height, scale);
                 surface.RenderedKey = key;
-                Log.Information("Strip render at {Rect} (force {Force}, visible {Visible}, hover {Hover})", rect, force, surface.Visible, surface.Hover);
+                Log.Debug("Strip render at {Rect} (force {Force}, visible {Visible}, hover {Hover})", rect, force, surface.Visible, surface.Hover);
                 Present(surface, rect);
                 surface.Placed = rect;
                 surface.PendingMove = null;
             }
             else if (surface.Placed is { } placed && placed != rect && (rect.Top != placed.Top || Math.Abs(rect.Left - placed.Left) >= (int)Math.Round(24 * scale)) && MoveSettled(surface, rect))
             {
-                Log.Information("Strip move {From} -> {To}", surface.Placed, rect);
+                Log.Debug("Strip move {From} -> {To}", surface.Placed, rect);
                 StripNative.SetWindowPos(surface.Window, StripNative.HwndTopmost, rect.Left, rect.Top, 0, 0, StripNative.SwpNoSize | StripNative.SwpNoActivate);
                 surface.Placed = rect;
                 surface.PendingMove = null;

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Notka.Core;
 using Serilog;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -117,7 +118,12 @@ namespace Notka.Desktop.Taskbar
                         continue;
                     }
 
-                    var scanned = Scan(automation);
+                    IReadOnlyDictionary<IntPtr, TaskbarLayout> scanned;
+                    using (Perf.Measure("strip.scan"))
+                    {
+                        scanned = Scan(automation);
+                    }
+
                     if (scanned.OrderBy(p => p.Key).SequenceEqual(_layouts.OrderBy(p => p.Key)))
                     {
                         _calmScans++;
@@ -125,7 +131,7 @@ namespace Notka.Desktop.Taskbar
                     else
                     {
                         _calmScans = 0;
-                        Log.Information("Taskbar layout {Layouts}", scanned.Select(p => $"{p.Key}: {p.Value}"));
+                        Log.Debug("Taskbar layout {Layouts}", scanned.Select(p => $"{p.Key}: {p.Value}"));
                     }
 
                     _layouts = scanned;

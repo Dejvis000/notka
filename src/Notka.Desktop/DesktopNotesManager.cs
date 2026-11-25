@@ -1,3 +1,4 @@
+using Notka.Core;
 using Notka.Desktop.Services;
 using Notka.Desktop.ViewModels;
 using Serilog;
@@ -84,6 +85,7 @@ namespace Notka.Desktop
 
             try
             {
+                using var scope = Perf.Measure("ui.desktopNoteOpen");
                 var id = note.Id;
                 var window = new DesktopNoteWindow(note, _store.Get(id), _windows.Count, state =>
                 {

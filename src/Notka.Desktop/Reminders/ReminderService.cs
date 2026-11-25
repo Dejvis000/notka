@@ -56,6 +56,7 @@ namespace Notka.Desktop.Reminders
             _timer.Interval = TickInterval;
             _timer.Tick += (sender, args) =>
             {
+                using var scope = Perf.Measure("reminders.tick");
                 if (!_loaded)
                 {
                     _ = ReloadAsync();
