@@ -110,7 +110,10 @@ namespace Notka.Desktop
             _ = InitializeViewModelAsync();
             StartUpdateChecks(updates);
             var launchArguments = Environment.GetCommandLineArgs();
-            if (!launchArguments.Contains(AutostartService.TrayArgument) && !launchArguments.Contains("-Embedding"))
+            var startHidden = launchArguments.Contains("-Embedding")
+                || settings.StartMode == StartModes.Tray
+                || (settings.StartMode == StartModes.Last && launchArguments.Contains(AutostartService.TrayArgument));
+            if (!startHidden)
             {
                 _window.Activate();
             }

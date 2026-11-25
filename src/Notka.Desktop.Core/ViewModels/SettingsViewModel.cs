@@ -104,6 +104,36 @@ namespace Notka.Desktop.ViewModels
         [ObservableProperty]
         private bool _stripBackground;
 
+        public IReadOnlyList<StartModeOption> StartModeOptions { get; } =
+        [
+            new(StartModes.Last, "Domyślnie"),
+            new(StartModes.Window, "Okno"),
+            new(StartModes.Compact, "Okno kompaktowe"),
+            new(StartModes.Tray, "Tylko ikona w trayu"),
+        ];
+
+        public string StartMode
+        {
+            get => _settings.StartMode;
+            set
+            {
+                if (value is null)
+                {
+                    return;
+                }
+
+                var mode = StartModes.Normalize(value);
+                if (mode == _settings.StartMode)
+                {
+                    return;
+                }
+
+                _settings.StartMode = mode;
+                _settings.Save();
+                OnPropertyChanged();
+            }
+        }
+
         public ObservableCollection<StripTargetOption> StripTargetOptions { get; } = [];
 
         public string StripTarget

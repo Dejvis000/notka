@@ -363,6 +363,14 @@
                       AutomationProperties.Name="Uruchamiaj z Windows"
                       IsOn="{x:Bind Settings.StartWithWindows, Mode=TwoWay}" />
         <StackPanel Spacing="4">
+          <ComboBox Header="Po uruchomieniu Notki" MinWidth="280" AutomationProperties.Name="Po uruchomieniu Notki"
+                    ItemsSource="{x:Bind Settings.StartModeOptions}" DisplayMemberPath="Label"
+                    SelectedValuePath="Id" SelectedValue="{x:Bind Settings.StartMode, Mode=TwoWay}" />
+          <TextBlock Text="Domyślnie: okno w ostatnim widoku, a po starcie z Windows tylko ikona w trayu." TextWrapping="Wrap"
+                     Style="{StaticResource CaptionTextBlockStyle}"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        <StackPanel Spacing="4">
           <ToggleSwitch Header="Pasek przy zegarze" OnContent="Pokazuj" OffContent="Ukryty"
                         AutomationProperties.Name="Pasek przy zegarze"
                         IsOn="{x:Bind Settings.ShowStrip, Mode=TwoWay}" />

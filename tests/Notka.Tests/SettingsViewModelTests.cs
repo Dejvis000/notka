@@ -40,6 +40,23 @@ namespace Notka.Tests
         }
 
         [Fact]
+        public void The_start_mode_defaults_to_the_last_view_and_the_choice_is_remembered()
+        {
+            var settings = Create();
+            Assert.Equal(StartModes.Last, settings.StartMode);
+            Assert.Equal([StartModes.Last, StartModes.Window, StartModes.Compact, StartModes.Tray], settings.StartModeOptions.Select(o => o.Id));
+
+            settings.StartMode = StartModes.Tray;
+            settings.StartMode = null!;
+            Assert.Equal(StartModes.Tray, Create().StartMode);
+
+            settings.StartMode = "garbage";
+            Assert.Equal(StartModes.Last, Create().StartMode);
+            settings.StartMode = StartModes.Compact;
+            Assert.Equal(StartModes.Compact, Create().StartMode);
+        }
+
+        [Fact]
         public void A_strip_hidden_together_with_an_auto_hidden_taskbar_is_reported_as_hidden_not_unavailable()
         {
             var settings = Create();

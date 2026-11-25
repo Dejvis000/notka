@@ -24,6 +24,8 @@ namespace Notka.Desktop.Services
 
         public bool Reminders { get; set; } = true;
 
+        public string StartMode { get; set; } = StartModes.Last;
+
         public bool Compact { get; set; }
 
         public bool AlwaysOnTop { get; set; }
@@ -51,6 +53,7 @@ namespace Notka.Desktop.Services
                     settings.AllowAgents = stored.AllowAgents;
                     settings.AutoUpdateCheck = stored.AutoUpdateCheck;
                     settings.Reminders = stored.Reminders;
+                    settings.StartMode = StartModes.Normalize(stored.StartMode);
                     settings.Compact = stored.Compact;
                     settings.AlwaysOnTop = stored.AlwaysOnTop;
                     settings.CompactShowsTasks = stored.CompactShowsTasks;
@@ -73,7 +76,7 @@ namespace Notka.Desktop.Services
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_path))!);
                 var temporary = _path + ".tmp";
-                var stored = new Stored(ShowStrip, Compact, AlwaysOnTop, NormalWidth, NormalHeight, CompactWidth, CompactHeight, CompactShowsTasks, StripTarget, StripBackground, AllowAgents, AutoUpdateCheck, Reminders);
+                var stored = new Stored(ShowStrip, Compact, AlwaysOnTop, NormalWidth, NormalHeight, CompactWidth, CompactHeight, CompactShowsTasks, StripTarget, StripBackground, AllowAgents, AutoUpdateCheck, Reminders, StartMode);
                 File.WriteAllText(temporary, JsonSerializer.Serialize(stored, Json));
                 File.Move(temporary, _path, overwrite: true);
             }
@@ -95,6 +98,7 @@ namespace Notka.Desktop.Services
             bool StripBackground = true,
             bool AllowAgents = true,
             bool AutoUpdateCheck = true,
-            bool Reminders = true);
+            bool Reminders = true,
+            string StartMode = StartModes.Last);
     }
 }

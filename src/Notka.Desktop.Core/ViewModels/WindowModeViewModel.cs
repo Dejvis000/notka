@@ -17,7 +17,12 @@ namespace Notka.Desktop.ViewModels
         public WindowModeViewModel(AppSettings settings)
         {
             _settings = settings;
-            _isCompact = settings.Compact;
+            _isCompact = settings.StartMode switch
+            {
+                StartModes.Window => false,
+                StartModes.Compact => true,
+                _ => settings.Compact,
+            };
             _alwaysOnTop = settings.AlwaysOnTop;
             _showTasks = settings.CompactShowsTasks;
         }

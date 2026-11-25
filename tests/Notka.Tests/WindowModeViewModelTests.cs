@@ -27,6 +27,33 @@ namespace Notka.Tests
             Assert.False(mode.KeepOnTop);
         }
 
+        [Theory]
+        [InlineData(StartModes.Last, true, true)]
+        [InlineData(StartModes.Last, false, false)]
+        [InlineData(StartModes.Window, true, false)]
+        [InlineData(StartModes.Compact, false, true)]
+        [InlineData(StartModes.Tray, true, true)]
+        public void The_start_mode_decides_which_view_opens(string startMode, bool lastWasCompact, bool expectedCompact)
+        {
+            var settings = AppSettings.Load(_path);
+            settings.StartMode = startMode;
+            settings.Compact = lastWasCompact;
+
+            Assert.Equal(expectedCompact, new WindowModeViewModel(settings).IsCompact);
+        }
+
+        [Fact]
+        public void An_unknown_start_mode_in_the_file_falls_back_to_the_last_view()
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+            File.WriteAllText(_path, """{"StartMode":"Nonsense","Compact":true}""");
+
+            var settings = AppSettings.Load(_path);
+
+            Assert.Equal(StartModes.Last, settings.StartMode);
+            Assert.True(new WindowModeViewModel(settings).IsCompact);
+        }
+
         [Fact]
         public void The_compact_section_defaults_to_notes_and_the_tasks_choice_is_remembered()
         {
