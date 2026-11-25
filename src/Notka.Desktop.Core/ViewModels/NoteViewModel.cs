@@ -28,6 +28,9 @@ namespace Notka.Desktop.ViewModels
         private bool _pinned;
 
         [ObservableProperty]
+        private string _updatedText = string.Empty;
+
+        [ObservableProperty]
         private bool _isDirty;
 
         internal void Update(StickyNote note)
@@ -40,6 +43,7 @@ namespace Notka.Desktop.ViewModels
 
             Color = note.Color;
             Pinned = note.Pinned;
+            UpdatedText = note.UpdatedAt.ToString("dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture);
             _updating = false;
         }
 

@@ -22,7 +22,9 @@ namespace Notka.Desktop.ViewModels
 
         public ObservableCollection<TaskRowViewModel> Items { get; } = [];
 
-        public string EmptyText => SelectedTab switch
+        private List<TaskItem> _loaded = [];
+
+        public string EmptyText => !string.IsNullOrWhiteSpace(SearchText) ? "Brak pasujących zadań." : SelectedTab switch
         {
             TaskTab.Today => "Na dziś nic nie zostało.",
             TaskTab.Overdue => "Nic nie jest zaległe.",
@@ -34,6 +36,23 @@ namespace Notka.Desktop.ViewModels
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(EmptyText))]
         private TaskTab _selectedTab = TaskTab.Today;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(EmptyText))]
+        private string _searchText = string.Empty;
+
+        [ObservableProperty]
+        private bool _isSearchOpen;
+
+        [RelayCommand]
+        private void ToggleSearch()
+        {
+            IsSearchOpen = !IsSearchOpen;
+            if (!IsSearchOpen)
+            {
+                SearchText = string.Empty;
+            }
+        }
 
         [ObservableProperty]
         private string _newTitle = string.Empty;
@@ -69,12 +88,8 @@ namespace Notka.Desktop.ViewModels
                     tasks = tasks.Where(t => t.DueAt is null && !t.IsDone).ToList();
                 }
 
-                Items.Clear();
-                foreach (var task in tasks)
-                {
-                    Items.Add(new TaskRowViewModel(task, CompleteAsync));
-                }
-
+                _loaded = tasks;
+                ApplyFilter();
                 Error = null;
             }
             catch (NotkaApiException ex)
@@ -99,6 +114,7 @@ namespace Notka.Desktop.ViewModels
                 created = await _api.CreateTaskAsync(new TaskRequest { Title = title, DueAt = dueAt });
                 NewTitle = string.Empty;
                 NewDueDate = null;
+                SearchText = string.Empty;
                 Error = null;
             }
             catch (NotkaApiException ex)
@@ -128,6 +144,18 @@ namespace Notka.Desktop.ViewModels
         }
 
         partial void OnSelectedTabChanged(TaskTab value) => _ = RefreshAsync();
+
+        partial void OnSearchTextChanged(string value) => ApplyFilter();
+
+        private void ApplyFilter()
+        {
+            var query = SearchText.Trim();
+            Items.Clear();
+            foreach (var task in _loaded.Where(t => query.Length == 0 || t.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase)))
+            {
+                Items.Add(new TaskRowViewModel(task, CompleteAsync));
+            }
+        }
 
         private async Task CompleteAsync(TaskRowViewModel row)
         {

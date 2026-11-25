@@ -76,7 +76,7 @@ namespace Notka.Desktop
             var ui = BuildUiServices(_api.Url, _api.Token, new AutostartService(exePath), this);
             _ui = ui;
             _viewModel = ui.GetRequiredService<MainViewModel>();
-            _window = new MainWindow(_viewModel, ui.GetRequiredService<SettingsViewModel>());
+            _window = new MainWindow(_viewModel, ui.GetRequiredService<SettingsViewModel>(), ui.GetRequiredService<WindowModeViewModel>());
             _window.Closed += async (_, _) => await ShutdownAsync();
 
             CreateTray();
@@ -118,6 +118,7 @@ namespace Notka.Desktop
             services.AddSingleton(lifetime);
             services.AddSingleton(AppSettings.Load(AppSettings.DefaultPath()));
             services.AddSingleton<SettingsViewModel>();
+            services.AddSingleton<WindowModeViewModel>();
             services.AddHttpClient<INotkaApiClient, NotkaApiClient>(client =>
             {
                 client.BaseAddress = apiUrl;
@@ -187,6 +188,7 @@ namespace Notka.Desktop
                 return;
             }
 
+            _window.StoreCurrentSize();
             _window.AllowClose = true;
             _window.Close();
             await ShutdownAsync();

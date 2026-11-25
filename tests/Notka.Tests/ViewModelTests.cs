@@ -39,6 +39,27 @@ namespace Notka.Tests
         }
 
         [Fact]
+        public async Task Searching_tasks_filters_the_current_tab_by_title_and_clearing_shows_all()
+        {
+            _api.AddTask(Task("Zadzwonić do księgowej", DateTime.Today));
+            _api.AddTask(Task("Kupić kawę", DateTime.Today));
+            var tasks = new TasksViewModel(_api);
+            await tasks.RefreshAsync();
+
+            tasks.SearchText = "KAWĘ";
+            Assert.Equal(["Kupić kawę"], tasks.Items.Select(t => t.Title));
+
+            tasks.SearchText = "xyz";
+            Assert.Empty(tasks.Items);
+            Assert.Equal("Brak pasujących zadań.", tasks.EmptyText);
+
+            tasks.ToggleSearchCommand.Execute(null);
+            tasks.ToggleSearchCommand.Execute(null);
+            Assert.Equal("", tasks.SearchText);
+            Assert.Equal(2, tasks.Items.Count);
+        }
+
+        [Fact]
         public async Task A_quick_added_task_on_the_Today_tab_is_due_today_and_the_title_is_cleared()
         {
             var tasks = new TasksViewModel(_api) { NewTitle = "  Oddać poprawki  " };
@@ -253,6 +274,36 @@ namespace Notka.Tests
 
             Assert.Equal(2, notes.Visible.Count);
             Assert.Contains(first, notes.Visible);
+        }
+
+        [Fact]
+        public async Task A_note_card_shows_the_date_of_its_last_change()
+        {
+            _api.AddNote(new StickyNote { Content = "a" });
+            var notes = new NotesViewModel(_api);
+
+            await notes.RefreshAsync();
+
+            Assert.Matches(@"^\d{2}\.\d{2}\.\d{4}$", notes.Visible[0].UpdatedText);
+        }
+
+        [Fact]
+        public async Task Closing_the_search_clears_the_filter()
+        {
+            _api.AddNote(new StickyNote { Content = "kawa" });
+            _api.AddNote(new StickyNote { Content = "herbata" });
+            var notes = new NotesViewModel(_api);
+            await notes.RefreshAsync();
+
+            notes.ToggleSearchCommand.Execute(null);
+            Assert.True(notes.IsSearchOpen);
+            notes.SearchText = "kawa";
+            Assert.Single(notes.Visible);
+
+            notes.ToggleSearchCommand.Execute(null);
+
+            Assert.False(notes.IsSearchOpen);
+            Assert.Equal(2, notes.Visible.Count);
         }
 
         [Fact]

@@ -26,6 +26,9 @@ namespace Notka.Desktop.ViewModels
         private string _newNoteText = string.Empty;
 
         [ObservableProperty]
+        private bool _isSearchOpen;
+
+        [ObservableProperty]
         private string? _error;
 
         [RelayCommand]
@@ -61,6 +64,16 @@ namespace Notka.Desktop.ViewModels
             catch (NotkaApiException ex)
             {
                 Error = ex.Message;
+            }
+        }
+
+        [RelayCommand]
+        private void ToggleSearch()
+        {
+            IsSearchOpen = !IsSearchOpen;
+            if (!IsSearchOpen)
+            {
+                SearchText = string.Empty;
             }
         }
 

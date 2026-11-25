@@ -13,6 +13,20 @@ namespace Notka.Desktop.Services
 
         public bool ShowStrip { get; set; } = true;
 
+        public bool Compact { get; set; }
+
+        public bool AlwaysOnTop { get; set; }
+
+        public bool CompactShowsTasks { get; set; }
+
+        public int NormalWidth { get; set; }
+
+        public int NormalHeight { get; set; }
+
+        public int CompactWidth { get; set; }
+
+        public int CompactHeight { get; set; }
+
         public static AppSettings Load(string path)
         {
             var settings = new AppSettings(path);
@@ -21,6 +35,13 @@ namespace Notka.Desktop.Services
                 if (File.Exists(path) && JsonSerializer.Deserialize<Stored>(File.ReadAllText(path), Json) is { } stored)
                 {
                     settings.ShowStrip = stored.ShowStrip;
+                    settings.Compact = stored.Compact;
+                    settings.AlwaysOnTop = stored.AlwaysOnTop;
+                    settings.CompactShowsTasks = stored.CompactShowsTasks;
+                    settings.NormalWidth = stored.NormalWidth;
+                    settings.NormalHeight = stored.NormalHeight;
+                    settings.CompactWidth = stored.CompactWidth;
+                    settings.CompactHeight = stored.CompactHeight;
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
@@ -36,7 +57,8 @@ namespace Notka.Desktop.Services
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_path))!);
                 var temporary = _path + ".tmp";
-                File.WriteAllText(temporary, JsonSerializer.Serialize(new Stored(ShowStrip), Json));
+                var stored = new Stored(ShowStrip, Compact, AlwaysOnTop, NormalWidth, NormalHeight, CompactWidth, CompactHeight, CompactShowsTasks);
+                File.WriteAllText(temporary, JsonSerializer.Serialize(stored, Json));
                 File.Move(temporary, _path, overwrite: true);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -44,6 +66,14 @@ namespace Notka.Desktop.Services
             }
         }
 
-        private sealed record Stored(bool ShowStrip = true);
+        private sealed record Stored(
+            bool ShowStrip = true,
+            bool Compact = false,
+            bool AlwaysOnTop = false,
+            int NormalWidth = 0,
+            int NormalHeight = 0,
+            int CompactWidth = 0,
+            int CompactHeight = 0,
+            bool CompactShowsTasks = false);
     }
 }

@@ -23,7 +23,15 @@ namespace Notka.Desktop
 
         public static Visibility VisibleWhen(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
 
-        public static Visibility VisibleWhenNot(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
+        public static Visibility VisibleWhenOpenOrText(bool open, string? text) => open || !string.IsNullOrEmpty(text) ? Visibility.Visible : Visibility.Collapsed;
+
+        public static Visibility VisibleWhenNeither(bool first, bool second) => first || second ? Visibility.Collapsed : Visibility.Visible;
+
+        public static Visibility VisibleWhenOnly(bool first, bool second) => first && !second ? Visibility.Visible : Visibility.Collapsed;
+
+        public static string CompactLabel(bool compact) => compact ? "Widok pełny" : "Widok kompaktowy";
+
+        public static string CompactGlyph(bool compact) => compact ? "" : "";
 
         public static Visibility VisibleWhenText(string? value) => string.IsNullOrEmpty(value) ? Visibility.Collapsed : Visibility.Visible;
 

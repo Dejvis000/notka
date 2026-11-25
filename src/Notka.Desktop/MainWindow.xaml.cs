@@ -14,51 +14,100 @@ namespace Notka.Desktop
 {
     public sealed partial class MainWindow : Window
     {
-        private const int DefaultWidth = 1180;
-        private const int DefaultHeight = 760;
-        private const int MinWidth = 900;
-        private const int MinHeight = 520;
+        private const int NormalMinWidth = 900;
+        private const int NormalMinHeight = 520;
+        private const int CompactMinWidth = 340;
+        private const int CompactMinHeight = 300;
 
-        public MainWindow(MainViewModel viewModel, SettingsViewModel settings)
+        public MainWindow(MainViewModel viewModel, SettingsViewModel settings, WindowModeViewModel windowMode)
         {
             ViewModel = viewModel;
             Settings = settings;
+            WindowMode = windowMode;
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(TitleBarArea);
             SystemBackdrop = new MicaBackdrop();
             AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
-            ApplySize();
+            ApplyMode(center: true);
             AppWindow.Closing += OnClosing;
             ViewModel.Tasks.PropertyChanged += OnTasksPropertyChanged;
+            WindowMode.PropertyChanged += OnWindowModeChanged;
         }
 
         public MainViewModel ViewModel { get; }
 
         public SettingsViewModel Settings { get; }
 
+        public WindowModeViewModel WindowMode { get; }
+
         public bool AllowClose { get; set; }
 
-        private void ApplySize()
+        private double Scale => PInvoke.GetDpiForWindow(new HWND(WinRT.Interop.WindowNative.GetWindowHandle(this))) / 96.0;
+
+        private void ApplyMode(bool center)
         {
-            var scale = PInvoke.GetDpiForWindow(new HWND(WinRT.Interop.WindowNative.GetWindowHandle(this))) / 96.0;
-            var workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
-            var width = Math.Min((int)(DefaultWidth * scale), workArea.Width);
-            var height = Math.Min((int)(DefaultHeight * scale), workArea.Height);
-            AppWindow.MoveAndResize(new RectInt32(
-                workArea.X + ((workArea.Width - width) / 2),
-                workArea.Y + ((workArea.Height - height) / 2),
-                width,
-                height));
+            var scale = Scale;
+            var compact = WindowMode.IsCompact;
             if (AppWindow.Presenter is OverlappedPresenter presenter)
             {
-                presenter.PreferredMinimumWidth = (int)(MinWidth * scale);
-                presenter.PreferredMinimumHeight = (int)(MinHeight * scale);
+                presenter.PreferredMinimumWidth = (int)((compact ? CompactMinWidth : NormalMinWidth) * scale);
+                presenter.PreferredMinimumHeight = (int)((compact ? CompactMinHeight : NormalMinHeight) * scale);
+                presenter.IsAlwaysOnTop = WindowMode.KeepOnTop;
             }
+
+            var (dipWidth, dipHeight) = WindowMode.GetSize(compact);
+            var workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
+            var width = Math.Min((int)(dipWidth * scale), workArea.Width);
+            var height = Math.Min((int)(dipHeight * scale), workArea.Height);
+            if (center)
+            {
+                AppWindow.MoveAndResize(new RectInt32(
+                    workArea.X + ((workArea.Width - width) / 2),
+                    workArea.Y + ((workArea.Height - height) / 2),
+                    width,
+                    height));
+            }
+            else
+            {
+                AppWindow.Resize(new SizeInt32(width, height));
+            }
+        }
+
+        private void OnWindowModeChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(WindowModeViewModel.IsCompact))
+            {
+                if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Maximized } maximized)
+                {
+                    maximized.Restore();
+                }
+
+                StoreCurrentSize(!WindowMode.IsCompact);
+                ApplyMode(center: false);
+            }
+            else if (e.PropertyName == nameof(WindowModeViewModel.KeepOnTop) && AppWindow.Presenter is OverlappedPresenter presenter)
+            {
+                presenter.IsAlwaysOnTop = WindowMode.KeepOnTop;
+            }
+        }
+
+        public void StoreCurrentSize() => StoreCurrentSize(WindowMode.IsCompact);
+
+        private void StoreCurrentSize(bool compact)
+        {
+            if (AppWindow.Presenter is OverlappedPresenter { State: not OverlappedPresenterState.Restored })
+            {
+                return;
+            }
+
+            var scale = Scale;
+            WindowMode.SetSize(compact, (int)Math.Round(AppWindow.Size.Width / scale), (int)Math.Round(AppWindow.Size.Height / scale));
         }
 
         private void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
         {
+            StoreCurrentSize();
             if (!AllowClose)
             {
                 args.Cancel = true;
@@ -79,6 +128,29 @@ namespace Notka.Desktop
             if (item is not null && TabBar.SelectedItem != item)
             {
                 TabBar.SelectedItem = item;
+            }
+
+            var index = (int)ViewModel.Tasks.SelectedTab;
+            if (CompactTabBox.SelectedIndex != index)
+            {
+                CompactTabBox.SelectedIndex = index;
+            }
+        }
+
+        private void CompactSection_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+        {
+            if (sender.SelectedItem?.Tag is string tag)
+            {
+                WindowMode.ShowTasks = tag == "Tasks";
+            }
+        }
+
+        private void CompactTab_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var index = ((ComboBox)sender).SelectedIndex;
+            if (index >= 0)
+            {
+                ViewModel.Tasks.SelectedTab = (TaskTab)index;
             }
         }
 

@@ -4,26 +4,76 @@
         xmlns:local="using:Notka.Desktop"
         xmlns:vm="using:Notka.Desktop.ViewModels"
         Title="Notka">
-  <Grid x:Name="Root" ColumnDefinitions="400,*" RowDefinitions="48,*,Auto">
+  <Grid x:Name="Root" RowDefinitions="48,*,Auto">
     <Grid.KeyboardAccelerators>
       <KeyboardAccelerator Key="Escape" Invoked="Escape_Invoked" />
     </Grid.KeyboardAccelerators>
 
-    <Grid x:Name="TitleBarArea" Grid.ColumnSpan="2" ColumnDefinitions="*,144">
+    <Grid.Resources>
+      <Style x:Key="TaskItemStyle" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      </Style>
+      <DataTemplate x:Key="TaskRowTemplate" x:DataType="vm:TaskRowViewModel">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4" Padding="0,6"
+              AutomationProperties.Name="{x:Bind Title}">
+          <CheckBox MinWidth="0" Padding="0" VerticalAlignment="Top"
+                    AutomationProperties.Name="Oznacz jako zrobione"
+                    IsChecked="{x:Bind IsDone}"
+                    IsEnabled="{x:Bind local:UiFunctions.Not(IsDone)}"
+                    Command="{x:Bind CompleteCommand}" />
+          <StackPanel Grid.Column="1" Spacing="2">
+            <TextBlock Text="{x:Bind Title}" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <TextBlock Text="{x:Bind DueText}" Style="{StaticResource CaptionTextBlockStyle}"
+                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                         Visibility="{x:Bind local:UiFunctions.VisibleWhenText(DueText)}" />
+              <TextBlock Text="zaległe" Style="{StaticResource CaptionTextBlockStyle}"
+                         Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                         Visibility="{x:Bind local:UiFunctions.VisibleWhen(IsOverdue)}" />
+              <TextBlock Text="{x:Bind PriorityText}" Style="{StaticResource CaptionTextBlockStyle}"
+                         Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                         Visibility="{x:Bind local:UiFunctions.VisibleWhenText(PriorityText)}" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </DataTemplate>
+    </Grid.Resources>
+
+    <Grid x:Name="TitleBarArea" ColumnDefinitions="*,144">
       <TextBlock Text="Notka" VerticalAlignment="Center" Margin="24,0,0,0"
                  FontSize="14" FontWeight="SemiBold" />
-      <Button HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"
-              Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Ustawienia"
-              AutomationProperties.Name="Ustawienia" Command="{x:Bind Settings.ToggleCommand}">
-        <FontIcon FontSize="16" Glyph="&#xE713;" />
-      </Button>
+      <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"
+                  Orientation="Horizontal" Spacing="2">
+        <Button Background="Transparent" BorderThickness="0" Command="{x:Bind WindowMode.ToggleAlwaysOnTopCommand}"
+                Visibility="{x:Bind local:UiFunctions.VisibleWhen(WindowMode.IsCompact), Mode=OneWay}"
+                ToolTipService.ToolTip="Zawsze na wierzchu" AutomationProperties.Name="Zawsze na wierzchu">
+          <FontIcon FontSize="16" Glyph="{x:Bind local:UiFunctions.PinGlyph(WindowMode.AlwaysOnTop), Mode=OneWay}" />
+        </Button>
+        <Button Background="Transparent" BorderThickness="0" Command="{x:Bind WindowMode.ToggleCompactCommand}"
+                ToolTipService.ToolTip="{x:Bind local:UiFunctions.CompactLabel(WindowMode.IsCompact), Mode=OneWay}"
+                AutomationProperties.Name="{x:Bind local:UiFunctions.CompactLabel(WindowMode.IsCompact), Mode=OneWay}">
+          <FontIcon FontSize="16" Glyph="{x:Bind local:UiFunctions.CompactGlyph(WindowMode.IsCompact), Mode=OneWay}" />
+        </Button>
+        <Button Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Ustawienia"
+                AutomationProperties.Name="Ustawienia" Command="{x:Bind Settings.ToggleCommand}">
+          <FontIcon FontSize="16" Glyph="&#xE713;" />
+        </Button>
+      </StackPanel>
     </Grid>
 
-    <Grid Grid.Row="1" Grid.Column="0" Padding="24,12,20,16" RowSpacing="12"
-          Visibility="{x:Bind local:UiFunctions.VisibleWhenNot(Settings.IsOpen), Mode=OneWay}"
+    <Grid x:Name="NormalView" Grid.Row="1" ColumnDefinitions="400,*"
+          Visibility="{x:Bind local:UiFunctions.VisibleWhenNeither(WindowMode.IsCompact, Settings.IsOpen), Mode=OneWay}">
+
+    <Grid Grid.Column="0" Padding="24,12,20,16" RowSpacing="12"
           Background="{ThemeResource LayerFillColorDefaultBrush}"
           RowDefinitions="Auto,Auto,Auto,Auto,*">
-      <TextBlock Text="Zadania" Style="{StaticResource TitleTextBlockStyle}" />
+      <Grid ColumnDefinitions="*,160" ColumnSpacing="12">
+        <TextBlock Text="Zadania" Style="{StaticResource TitleTextBlockStyle}" />
+        <TextBox Grid.Column="1" PlaceholderText="Szukaj w zadaniach" AutomationProperties.Name="Szukaj w zadaniach"
+                 Text="{x:Bind ViewModel.Tasks.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+      </Grid>
 
       <SelectorBar Grid.Row="1" x:Name="TabBar" SelectionChanged="TabBar_SelectionChanged">
         <SelectorBarItem x:Name="TodayItem" Text="Dziś" Tag="Today" IsSelected="True" />
@@ -48,49 +98,15 @@
                Message="{x:Bind ViewModel.Tasks.Error, Mode=OneWay}" />
 
       <Grid Grid.Row="4">
-        <ListView ItemsSource="{x:Bind ViewModel.Tasks.Items}" SelectionMode="None">
-          <ListView.ItemContainerStyle>
-            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
-              <Setter Property="Padding" Value="0" />
-              <Setter Property="MinHeight" Value="0" />
-              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            </Style>
-          </ListView.ItemContainerStyle>
-          <ListView.ItemTemplate>
-            <DataTemplate x:DataType="vm:TaskRowViewModel">
-              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4" Padding="0,6"
-                    AutomationProperties.Name="{x:Bind Title}">
-                <CheckBox MinWidth="0" Padding="0" VerticalAlignment="Top"
-                          AutomationProperties.Name="Oznacz jako zrobione"
-                          IsChecked="{x:Bind IsDone}"
-                          IsEnabled="{x:Bind local:UiFunctions.Not(IsDone)}"
-                          Command="{x:Bind CompleteCommand}" />
-                <StackPanel Grid.Column="1" Spacing="2">
-                  <TextBlock Text="{x:Bind Title}" TextWrapping="Wrap" />
-                  <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Text="{x:Bind DueText}" Style="{StaticResource CaptionTextBlockStyle}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               Visibility="{x:Bind local:UiFunctions.VisibleWhenText(DueText)}" />
-                    <TextBlock Text="zaległe" Style="{StaticResource CaptionTextBlockStyle}"
-                               Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                               Visibility="{x:Bind local:UiFunctions.VisibleWhen(IsOverdue)}" />
-                    <TextBlock Text="{x:Bind PriorityText}" Style="{StaticResource CaptionTextBlockStyle}"
-                               Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                               Visibility="{x:Bind local:UiFunctions.VisibleWhenText(PriorityText)}" />
-                  </StackPanel>
-                </StackPanel>
-              </Grid>
-            </DataTemplate>
-          </ListView.ItemTemplate>
-        </ListView>
+        <ListView ItemsSource="{x:Bind ViewModel.Tasks.Items}" SelectionMode="None"
+                  ItemContainerStyle="{StaticResource TaskItemStyle}" ItemTemplate="{StaticResource TaskRowTemplate}" />
         <TextBlock Text="{x:Bind ViewModel.Tasks.EmptyText, Mode=OneWay}" HorizontalAlignment="Center"
                    VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                    Visibility="{x:Bind local:UiFunctions.VisibleWhenZero(ViewModel.Tasks.Items.Count), Mode=OneWay}" />
       </Grid>
     </Grid>
 
-    <Grid Grid.Row="1" Grid.Column="1" Padding="28,12,28,16" RowSpacing="12" RowDefinitions="Auto,Auto,Auto,*"
-          Visibility="{x:Bind local:UiFunctions.VisibleWhenNot(Settings.IsOpen), Mode=OneWay}">
+    <Grid Grid.Column="1" Padding="28,12,28,16" RowSpacing="12" RowDefinitions="Auto,Auto,Auto,*">
       <Grid ColumnDefinitions="*,260" ColumnSpacing="16">
         <TextBlock Text="Notatki" Style="{StaticResource TitleTextBlockStyle}" />
         <TextBox Grid.Column="1" PlaceholderText="Szukaj w notatkach"
@@ -178,7 +194,139 @@
       </Grid>
     </Grid>
 
-    <Grid Grid.Row="1" Grid.ColumnSpan="2" Padding="48,16,48,16"
+    </Grid>
+
+    <Grid x:Name="CompactView" Grid.Row="1" Padding="12,0,12,12" RowSpacing="8" RowDefinitions="Auto,*"
+          Visibility="{x:Bind local:UiFunctions.VisibleWhenOnly(WindowMode.IsCompact, Settings.IsOpen), Mode=OneWay}">
+      <SelectorBar x:Name="CompactSectionBar" SelectionChanged="CompactSection_SelectionChanged">
+        <SelectorBarItem Text="Notatki" Tag="Notes" IsSelected="{x:Bind WindowMode.ShowNotes, Mode=OneWay}" />
+        <SelectorBarItem Text="Zadania" Tag="Tasks" IsSelected="{x:Bind WindowMode.ShowTasks, Mode=OneWay}" />
+      </SelectorBar>
+
+      <Grid Grid.Row="1" RowSpacing="10" RowDefinitions="Auto,Auto,Auto,*"
+            Visibility="{x:Bind local:UiFunctions.VisibleWhen(WindowMode.ShowNotes), Mode=OneWay}">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBox PlaceholderText="+ Notatka (Enter dodaje)" MaxLength="10000"
+                 AutomationProperties.Name="Nowa notatka"
+                 Text="{x:Bind ViewModel.Notes.NewNoteText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 KeyDown="NewNoteBox_KeyDown" />
+        <Button Grid.Column="1" Command="{x:Bind ViewModel.Notes.ToggleSearchCommand}"
+                ToolTipService.ToolTip="Szukaj" AutomationProperties.Name="Szukaj">
+          <FontIcon FontSize="14" Glyph="&#xE721;" />
+        </Button>
+      </Grid>
+      <TextBox Grid.Row="1" PlaceholderText="Szukaj w notatkach" AutomationProperties.Name="Szukaj w notatkach"
+               Visibility="{x:Bind local:UiFunctions.VisibleWhenOpenOrText(ViewModel.Notes.IsSearchOpen, ViewModel.Notes.SearchText), Mode=OneWay}"
+               Text="{x:Bind ViewModel.Notes.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+      <InfoBar Grid.Row="2" Severity="Error" IsClosable="False"
+               IsOpen="{x:Bind local:UiFunctions.HasText(ViewModel.Notes.Error), Mode=OneWay}"
+               Message="{x:Bind ViewModel.Notes.Error, Mode=OneWay}" />
+      <Grid Grid.Row="3">
+        <ListView ItemsSource="{x:Bind ViewModel.Notes.Visible}" SelectionMode="None">
+          <ListView.ItemContainerStyle>
+            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+              <Setter Property="Padding" Value="0" />
+              <Setter Property="MinHeight" Value="0" />
+              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            </Style>
+          </ListView.ItemContainerStyle>
+          <ListView.ItemTemplate>
+            <DataTemplate x:DataType="vm:NoteViewModel">
+              <Grid Margin="0,0,0,8" Padding="14,6,6,8" CornerRadius="3" RowDefinitions="Auto,Auto"
+                    Background="{x:Bind local:UiFunctions.NoteBrush(Color), Mode=OneWay}">
+                <Grid.Resources>
+                  <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                  <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="TextControlForeground" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="ButtonForeground" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#2B2B2B" />
+                  <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22000000" />
+                  <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33000000" />
+                </Grid.Resources>
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <FontIcon FontSize="12" Glyph="&#xE842;" Foreground="#2B2B2B" VerticalAlignment="Center"
+                            Visibility="{x:Bind local:UiFunctions.VisibleWhen(Pinned), Mode=OneWay}" />
+                  <TextBlock Grid.Column="1" Text="{x:Bind UpdatedText, Mode=OneWay}" Foreground="#2B2B2B"
+                             FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <Button Grid.Column="2" Background="Transparent" BorderThickness="0" Padding="6,2"
+                          ToolTipService.ToolTip="Więcej" AutomationProperties.Name="Więcej">
+                    <FontIcon FontSize="14" Glyph="&#xE712;" />
+                    <Button.Flyout>
+                      <MenuFlyout>
+                        <MenuFlyoutItem Text="{x:Bind local:UiFunctions.PinLabel(Pinned), Mode=OneWay}"
+                                        Command="{x:Bind TogglePinCommand}" />
+                        <MenuFlyoutSubItem Text="Kolor">
+                          <MenuFlyoutItem Text="Żółty" Command="{x:Bind SetColorCommand}" CommandParameter="yellow" />
+                          <MenuFlyoutItem Text="Niebieski" Command="{x:Bind SetColorCommand}" CommandParameter="blue" />
+                          <MenuFlyoutItem Text="Zielony" Command="{x:Bind SetColorCommand}" CommandParameter="green" />
+                          <MenuFlyoutItem Text="Różowy" Command="{x:Bind SetColorCommand}" CommandParameter="pink" />
+                          <MenuFlyoutItem Text="Fioletowy" Command="{x:Bind SetColorCommand}" CommandParameter="purple" />
+                        </MenuFlyoutSubItem>
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem Text="Usuń notatkę" Command="{x:Bind DeleteCommand}" />
+                      </MenuFlyout>
+                    </Button.Flyout>
+                  </Button>
+                </Grid>
+                <TextBox Grid.Row="1" Text="{x:Bind Content, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Segoe Print" FontSize="14"
+                         Padding="0,4" MaxHeight="120" MaxLength="10000" AutomationProperties.Name="Treść notatki"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" LostFocus="Note_LostFocus" />
+              </Grid>
+            </DataTemplate>
+          </ListView.ItemTemplate>
+        </ListView>
+        <TextBlock Text="{x:Bind ViewModel.Notes.EmptyText, Mode=OneWay}" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Visibility="{x:Bind local:UiFunctions.VisibleWhenZero(ViewModel.Notes.Visible.Count), Mode=OneWay}" />
+      </Grid>
+      </Grid>
+
+      <Grid Grid.Row="1" RowSpacing="10" RowDefinitions="Auto,Auto,Auto,Auto,*"
+            Visibility="{x:Bind local:UiFunctions.VisibleWhen(WindowMode.ShowTasks), Mode=OneWay}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <TextBox PlaceholderText="+ Zadanie (Enter dodaje)" MaxLength="500"
+                   AutomationProperties.Name="Nowe zadanie"
+                   Text="{x:Bind ViewModel.Tasks.NewTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                   KeyDown="NewTaskBox_KeyDown" />
+          <Button Grid.Column="1" Command="{x:Bind ViewModel.Tasks.ToggleSearchCommand}"
+                  ToolTipService.ToolTip="Szukaj" AutomationProperties.Name="Szukaj zadań">
+            <FontIcon FontSize="14" Glyph="&#xE721;" />
+          </Button>
+        </Grid>
+        <TextBox Grid.Row="1" PlaceholderText="Szukaj w zadaniach" AutomationProperties.Name="Szukaj w zadaniach"
+                 Visibility="{x:Bind local:UiFunctions.VisibleWhenOpenOrText(ViewModel.Tasks.IsSearchOpen, ViewModel.Tasks.SearchText), Mode=OneWay}"
+                 Text="{x:Bind ViewModel.Tasks.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <ComboBox Grid.Row="2" x:Name="CompactTabBox" HorizontalAlignment="Stretch" AutomationProperties.Name="Lista zadań"
+                  SelectedIndex="0" SelectionChanged="CompactTab_SelectionChanged">
+          <ComboBoxItem Content="Dziś" />
+          <ComboBoxItem Content="Zaległe" />
+          <ComboBoxItem Content="Później" />
+          <ComboBoxItem Content="Bez terminu" />
+          <ComboBoxItem Content="Zrobione" />
+        </ComboBox>
+        <InfoBar Grid.Row="3" Severity="Error" IsClosable="False"
+                 IsOpen="{x:Bind local:UiFunctions.HasText(ViewModel.Tasks.Error), Mode=OneWay}"
+                 Message="{x:Bind ViewModel.Tasks.Error, Mode=OneWay}" />
+        <Grid Grid.Row="4">
+          <ListView ItemsSource="{x:Bind ViewModel.Tasks.Items}" SelectionMode="None"
+                    ItemContainerStyle="{StaticResource TaskItemStyle}" ItemTemplate="{StaticResource TaskRowTemplate}" />
+          <TextBlock Text="{x:Bind ViewModel.Tasks.EmptyText, Mode=OneWay}" HorizontalAlignment="Center"
+                     VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                     Visibility="{x:Bind local:UiFunctions.VisibleWhenZero(ViewModel.Tasks.Items.Count), Mode=OneWay}" />
+        </Grid>
+      </Grid>
+    </Grid>
+
+    <Grid Grid.Row="1" Padding="48,16,48,16"
           Visibility="{x:Bind local:UiFunctions.VisibleWhen(Settings.IsOpen), Mode=OneWay}">
       <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="24">
         <StackPanel Orientation="Horizontal" Spacing="12">
@@ -206,7 +354,7 @@
       </StackPanel>
     </Grid>
 
-    <InfoBar Grid.Row="2" Grid.ColumnSpan="2" Severity="Warning" IsClosable="False"
+    <InfoBar Grid.Row="2" Severity="Warning" IsClosable="False"
              IsOpen="{x:Bind local:UiFunctions.HasText(ViewModel.Status), Mode=OneWay}"
              Message="{x:Bind ViewModel.Status, Mode=OneWay}" />
   </Grid>
