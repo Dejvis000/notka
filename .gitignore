@@ -7,3 +7,5 @@ obj/
 *.db-wal
 TestResults/
 artifacts/
+CLAUDE.md
+docs/PLAN.md

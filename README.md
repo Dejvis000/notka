@@ -96,8 +96,6 @@ Gdy aplikacja Notka nie działa, narzędzia zwracają czytelny komunikat.
 - `src/Notka.Mcp` - serwer MCP dla Claude Desktop
 - `tests/Notka.Tests` - testy xUnit
 
-Plan i postęp: [docs/PLAN.md](docs/PLAN.md). Zasady projektu: [CLAUDE.md](CLAUDE.md).
-
 ## Licencja
 
 [GNU GPL v3.0](LICENSE). Pasek przy zegarze inspirowały (tylko technika, bez kopiowania kodu)
