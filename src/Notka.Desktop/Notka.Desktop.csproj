@@ -8,6 +8,7 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <PublishReadyToRun>true</PublishReadyToRun>
     <ApplicationIcon>..\Notka.Launcher\Notka.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en;pl</SatelliteResourceLanguages>
     <WindowsPackageType>None</WindowsPackageType>
