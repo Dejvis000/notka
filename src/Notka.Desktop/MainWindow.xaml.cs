@@ -27,6 +27,7 @@ namespace Notka.Desktop
             WindowMode = windowMode;
             Updates = updates;
             InitializeComponent();
+            FillDueTimeLists();
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(TitleBarArea);
             SystemBackdrop = new MicaBackdrop();
@@ -167,6 +168,29 @@ namespace Notka.Desktop
             }
         }
 
+        private bool? _settingsWide;
+
+        private void SettingsPage_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            var wide = e.NewSize.Width >= 760;
+            if (_settingsWide == wide)
+            {
+                return;
+            }
+
+            _settingsWide = wide;
+            var target = wide ? SettingsRight : SettingsLeft;
+            foreach (var card in new[] { CardUpdates, CardAgents })
+            {
+                (card.Parent as Panel)?.Children.Remove(card);
+                target.Children.Add(card);
+            }
+
+            SettingsRight.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
+            SettingsGrid.ColumnDefinitions[1].Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+            SettingsGrid.ColumnSpacing = wide ? 16 : 0;
+        }
+
         private void TabBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
         {
             if (sender.SelectedItem?.Tag is string tag && Enum.TryParse<TaskTab>(tag, out var tab))
@@ -186,17 +210,89 @@ namespace Notka.Desktop
             }
         }
 
-        private void DueTime_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+        private void FillDueTimeLists()
+        {
+            for (var hour = 0; hour < 24; hour++)
+            {
+                DueHourList.Items.Add(hour.ToString("00", System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            for (var minute = 0; minute < 60; minute += 5)
+            {
+                DueMinuteList.Items.Add(minute.ToString("00", System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
+
+        private void DueTimeList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_syncingDue)
             {
                 return;
             }
 
-            var minute = double.IsNaN(DueMinuteBox.Value) ? 0 : Math.Floor(DueMinuteBox.Value);
-            ViewModel.Tasks.NewDueTime = double.IsNaN(DueHourBox.Value)
-                ? null
-                : TimeSpan.FromMinutes((Math.Floor(DueHourBox.Value) * 60) + minute);
+            if (DueHourList.SelectedIndex < 0)
+            {
+                if (DueMinuteList.SelectedIndex < 0)
+                {
+                    SelectDueTime(null);
+                }
+
+                return;
+            }
+
+            _syncingDue = true;
+            var minutes = DueMinuteList.SelectedIndex >= 0
+                ? DueMinuteList.SelectedIndex * 5
+                : ViewModel.Tasks.NewDueTime?.Minutes ?? 0;
+            if (DueMinuteList.SelectedIndex < 0 && minutes % 5 == 0)
+            {
+                DueMinuteList.SelectedIndex = minutes / 5;
+            }
+
+            var time = new TimeSpan(DueHourList.SelectedIndex, minutes, 0);
+            DueTimeBox.Text = $"{time:hh\\:mm}";
+            _syncingDue = false;
+            ViewModel.Tasks.NewDueTime = time;
+            UpdateDueText();
+        }
+
+        private void DueTimeBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_syncingDue)
+            {
+                return;
+            }
+
+            var text = DueTimeBox.Text;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                SelectDueTime(null);
+                return;
+            }
+
+            if (DueTimeInput.TryParse(text, out var time))
+            {
+                SelectDueTime(time);
+            }
+        }
+
+        private void SelectDueTime(TimeSpan? time)
+        {
+            _syncingDue = true;
+            DueHourList.SelectedIndex = time is { } t ? t.Hours : -1;
+            DueMinuteList.SelectedIndex = time is { } m && m.Minutes % 5 == 0 ? m.Minutes / 5 : -1;
+            if (DueHourList.SelectedItem is { } hourItem)
+            {
+                DueHourList.ScrollIntoView(hourItem);
+            }
+
+            if (DueMinuteList.SelectedItem is { } minuteItem)
+            {
+                DueMinuteList.ScrollIntoView(minuteItem);
+            }
+
+            _syncingDue = false;
+            ViewModel.Tasks.NewDueTime = time;
             UpdateDueText();
         }
 
@@ -211,8 +307,9 @@ namespace Notka.Desktop
         {
             _syncingDue = true;
             DueCalendar.SelectedDates.Clear();
-            DueHourBox.Value = double.NaN;
-            DueMinuteBox.Value = double.NaN;
+            DueHourList.SelectedIndex = -1;
+            DueMinuteList.SelectedIndex = -1;
+            DueTimeBox.Text = string.Empty;
             _syncingDue = false;
             UpdateDueText();
         }
@@ -229,7 +326,7 @@ namespace Notka.Desktop
 
             var day = (date ?? DateTime.Today).Date;
             var dayText = day == DateTime.Today ? "dziś" : day == DateTime.Today.AddDays(1) ? "jutro" : day.ToString("d MMM");
-            DueLabel.Text = time is { } t ? $"{dayText} {t:hh\\:mm}" : dayText;
+            DueLabel.Text = time is { } t ? $"{dayText} {(t == TimeSpan.Zero ? TimeSpan.FromMinutes(1) : t):hh\\:mm}" : dayText;
         }
 
         private async void AddTask_Click(object sender, RoutedEventArgs e) => await AddTaskAsync();

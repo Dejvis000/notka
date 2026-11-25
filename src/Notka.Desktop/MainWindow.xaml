@@ -98,13 +98,29 @@
           <Button.Flyout>
             <Flyout Placement="Bottom">
               <StackPanel Spacing="8">
+                <StackPanel.Resources>
+                  <Style x:Key="TimeListItem" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                    <Setter Property="MinHeight" Value="30" />
+                    <Setter Property="Padding" Value="12,0" />
+                  </Style>
+                </StackPanel.Resources>
                 <CalendarView x:Name="DueCalendar" SelectionMode="Single" SelectedDatesChanged="DueCalendar_SelectedDatesChanged" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <NumberBox x:Name="DueHourBox" Header="Godzina" PlaceholderText="gg" Minimum="0" Maximum="23"
-                             SpinButtonPlacementMode="Inline" SmallChange="1" Width="110" ValueChanged="DueTime_ValueChanged" />
-                  <NumberBox x:Name="DueMinuteBox" Header="Minuta" PlaceholderText="mm" Minimum="0" Maximum="59"
-                             SpinButtonPlacementMode="Inline" SmallChange="5" Width="110" ValueChanged="DueTime_ValueChanged" />
-                </StackPanel>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="Godzina" Style="{StaticResource CaptionTextBlockStyle}" />
+                    <ListView x:Name="DueHourList" Height="160" SelectionMode="Single" AutomationProperties.Name="Godzina"
+                              ItemContainerStyle="{StaticResource TimeListItem}"
+                              SelectionChanged="DueTimeList_SelectionChanged" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Text="Minuta" Style="{StaticResource CaptionTextBlockStyle}" />
+                    <ListView x:Name="DueMinuteList" Height="160" SelectionMode="Single" AutomationProperties.Name="Minuta"
+                              ItemContainerStyle="{StaticResource TimeListItem}"
+                              SelectionChanged="DueTimeList_SelectionChanged" />
+                  </StackPanel>
+                </Grid>
+                <TextBox x:Name="DueTimeBox" PlaceholderText="albo wpisz godzinę, np. 14:30" MaxLength="5"
+                         AutomationProperties.Name="Godzina wpisana" TextChanged="DueTimeBox_TextChanged" />
               </StackPanel>
             </Flyout>
           </Button.Flyout>
@@ -348,10 +364,19 @@
       </Grid>
     </Grid>
 
-    <Grid Grid.Row="1" Padding="48,16,48,16"
+    <Grid Grid.Row="1" Padding="24,16,24,16" SizeChanged="SettingsPage_SizeChanged"
           Visibility="{x:Bind local:UiFunctions.VisibleWhen(Settings.IsOpen), Mode=OneWay}">
+      <Grid.Resources>
+        <Style x:Key="SettingsCard" TargetType="Border">
+          <Setter Property="Padding" Value="16" />
+          <Setter Property="CornerRadius" Value="8" />
+          <Setter Property="BorderThickness" Value="1" />
+          <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+          <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+        </Style>
+      </Grid.Resources>
       <ScrollViewer VerticalScrollBarVisibility="Auto">
-      <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="24">
+      <StackPanel MaxWidth="1000" Spacing="16" Padding="0,0,0,8">
         <StackPanel Orientation="Horizontal" Spacing="12">
           <Button Command="{x:Bind Settings.CloseCommand}" Background="Transparent" BorderThickness="0"
                   ToolTipService.ToolTip="Wróć" AutomationProperties.Name="Wróć">
@@ -359,6 +384,11 @@
           </Button>
           <TextBlock Text="Ustawienia" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center" />
         </StackPanel>
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="16" x:Name="SettingsGrid">
+        <StackPanel x:Name="SettingsLeft" Spacing="16">
+        <Border x:Name="CardGeneral" Style="{StaticResource SettingsCard}">
+        <StackPanel Spacing="16">
+        <TextBlock Text="Ogólne" Style="{StaticResource SubtitleTextBlockStyle}" />
         <ToggleSwitch Header="Uruchamiaj z Windows" OnContent="Włączone" OffContent="Wyłączone"
                       AutomationProperties.Name="Uruchamiaj z Windows"
                       IsOn="{x:Bind Settings.StartWithWindows, Mode=TwoWay}" />
@@ -370,8 +400,20 @@
                      Style="{StaticResource CaptionTextBlockStyle}"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
+        <StackPanel Spacing="6">
+          <ToggleSwitch Header="Przypomnienia o zadaniach" OnContent="Włączone" OffContent="Wyłączone"
+                        AutomationProperties.Name="Przypomnienia o zadaniach"
+                        IsOn="{x:Bind Settings.Reminders, Mode=TwoWay}" />
+          <TextBlock Text="Powiadomienie 15 minut przed terminem zadania z godziną (przyciski Zrobione i Za 15 min) oraz poranne podsumowanie (od 9:00) zadań tylko z datą i zaległych."
+                     TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        </StackPanel>
+        </Border>
+        <Border x:Name="CardStrip" Style="{StaticResource SettingsCard}">
         <StackPanel Spacing="4">
-          <ToggleSwitch Header="Pasek przy zegarze" OnContent="Pokazuj" OffContent="Ukryty"
+          <TextBlock Text="Pasek przy zegarze" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,0,0,12" />
+          <ToggleSwitch Header="Pokazuj pasek" OnContent="Pokazuj" OffContent="Ukryty"
                         AutomationProperties.Name="Pasek przy zegarze"
                         IsOn="{x:Bind Settings.ShowStrip, Mode=TwoWay}" />
           <ToggleSwitch Header="Tło paska" OnContent="Z tłem" OffContent="Sam tekst"
@@ -384,15 +426,12 @@
                      Style="{StaticResource CaptionTextBlockStyle}"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
-        <StackPanel Spacing="6">
-          <ToggleSwitch Header="Przypomnienia o zadaniach" OnContent="Włączone" OffContent="Wyłączone"
-                        AutomationProperties.Name="Przypomnienia o zadaniach"
-                        IsOn="{x:Bind Settings.Reminders, Mode=TwoWay}" />
-          <TextBlock Text="Powiadomienie 15 minut przed terminem zadania z godziną (przyciski Zrobione i Za 15 min) oraz poranne podsumowanie (od 9:00) zadań tylko z datą i zaległych."
-                     TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
-                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </Border>
         </StackPanel>
+        <StackPanel x:Name="SettingsRight" Grid.Column="1" Spacing="16">
+        <Border x:Name="CardUpdates" Style="{StaticResource SettingsCard}">
         <StackPanel Spacing="6">
+          <TextBlock Text="Aktualizacje" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,0,0,8" />
           <TextBlock Text="{x:Bind Updates.CurrentVersionText}" Style="{StaticResource BodyStrongTextBlockStyle}" />
           <StackPanel Orientation="Horizontal" Spacing="12">
             <Button Content="Sprawdź aktualizacje" Command="{x:Bind Updates.CheckCommand}"
@@ -414,7 +453,10 @@
                         AutomationProperties.Name="Sprawdzaj aktualizacje automatycznie"
                         IsOn="{x:Bind Updates.AutoCheck, Mode=TwoWay}" />
         </StackPanel>
+        </Border>
+        <Border x:Name="CardAgents" Style="{StaticResource SettingsCard}">
         <StackPanel Spacing="6">
+          <TextBlock Text="Agenci AI" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,0,0,8" />
           <ToggleSwitch Header="Zezwalaj agentom AI na sterowanie Notką" OnContent="Włączone" OffContent="Wyłączone"
                         AutomationProperties.Name="Zezwalaj agentom AI na sterowanie Notką"
                         IsOn="{x:Bind Settings.AllowAgents, Mode=TwoWay}" />
@@ -429,6 +471,9 @@
                      TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
+        </Border>
+        </StackPanel>
+        </Grid>
         <InfoBar Severity="Error" IsClosable="False"
                  IsOpen="{x:Bind local:UiFunctions.HasText(Settings.Error), Mode=OneWay}"
                  Message="{x:Bind Settings.Error, Mode=OneWay}" />

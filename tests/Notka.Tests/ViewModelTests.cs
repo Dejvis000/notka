@@ -4,6 +4,37 @@ using Notka.Desktop.ViewModels;
 
 namespace Notka.Tests
 {
+    public sealed class DueTimeInputTests
+    {
+        [Theory]
+        [InlineData("14:30", 14, 30)]
+        [InlineData("9:05", 9, 5)]
+        [InlineData("09.05", 9, 5)]
+        [InlineData("14", 14, 0)]
+        [InlineData("1430", 14, 30)]
+        [InlineData("930", 9, 30)]
+        [InlineData(" 7:00 ", 7, 0)]
+        public void A_typed_time_is_understood_in_common_formats(string text, int hour, int minute)
+        {
+            Assert.True(DueTimeInput.TryParse(text, out var time));
+            Assert.Equal(new TimeSpan(hour, minute, 0), time);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("24:00")]
+        [InlineData("12:60")]
+        [InlineData("9:5")]
+        [InlineData("abc")]
+        [InlineData("１４")]
+        [InlineData("١٤:٣٠")]
+        [InlineData(null)]
+        public void An_invalid_typed_time_is_rejected(string? text)
+        {
+            Assert.False(DueTimeInput.TryParse(text, out _));
+        }
+    }
+
     public sealed class ViewModelTests
     {
         private readonly FakeApi _api = new();
