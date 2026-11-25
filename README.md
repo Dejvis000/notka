@@ -1,121 +1,97 @@
 # Notka
 
-Prywatna aplikacja na Windows 11: taski i sticky notes, sterowana także z Claude Desktop przez MCP.
+Private tasks and sticky notes for Windows 11, with a live summary next to the taskbar clock and an MCP server for AI agents. The app UI is in Polish.
 
-## Wymagania
+![Notka](docs/images/app.png)
 
-- Windows 11
-- .NET SDK 10
+## Features
 
-## Budowanie i testy
+- **Tasks** with due dates and Today, Overdue, Later, No date and Done views, plus search.
+- **Sticky notes** with colors, pinning and search, and a compact window in the style of Windows Sticky Notes.
+- **Taskbar strip** next to the clock: today's tasks at a glance, a hover card with the list, on one or all monitors, text only or with a background, hidden together with an auto-hidden taskbar.
+- **Reminders** as Windows notifications: 15 minutes before a task that has a time (Done and Snooze buttons), and a morning summary (from 9:00) of tasks that only have a date and of overdue ones.
+- **AI agents**: a bundled MCP server lets Claude Desktop, Claude Code, Cursor and others add and read tasks and notes. A setting switches it off.
+- **Updates** from GitHub Releases, installed on click, with a checksum check and rollback.
+- **Local only**: data lives in a SQLite file, and the API listens on `127.0.0.1` behind a per-launch token.
+
+| Compact window | Taskbar strip | Reminder |
+|---|---|---|
+| ![Compact window](docs/images/compact.png) | ![Taskbar strip](docs/images/strip.png) | ![Reminder](docs/images/reminder.png) |
+
+## Install
+
+1. Download `Notka-win-x64.zip` from [Releases](https://github.com/Dejvis000/notka/releases) and extract it to a folder you can write to (not `C:\Program Files`).
+2. Run `Notka.Desktop.exe`. Windows 11 x64 is required, .NET is not.
+
+The app is not code-signed, so SmartScreen may warn on first launch. Closing the window hides Notka to the tray; use Exit in the tray menu or in Settings to quit.
+
+## AI agents
+
+In Settings, "Copy prompt" copies instructions you paste into an agent's chat; the agent registers the `notka` server itself. To do it by hand, add this to the agent's MCP configuration (the file is `Notka.Mcp.exe` in the app folder):
+
+```json
+{
+  "mcpServers": {
+    "notka": { "command": "C:\\path\\to\\Notka.Mcp.exe" }
+  }
+}
+```
+
+Tools: `add_task`, `list_tasks`, `search_tasks`, `complete_task`, `update_task`, `create_note`, `list_notes`. Notka must be running.
+
+## Updates
+
+Notka checks GitHub Releases once a day and from Settings (anonymous request to `api.github.com`; the daily check can be turned off). Installing downloads the package, verifies its SHA-256 from the same release, replaces the files and restarts. A failed copy is rolled back; details are in `%LOCALAPPDATA%\Notka\update\update.log`. Running MCP servers from the app folder are stopped during the update, so restart your agent afterwards.
+
+## Build from source
+
+Requires Windows 11 and the .NET SDK 10.
 
 ```
 dotnet build Notka.sln
 dotnet test --solution Notka.sln
+dotnet run --project src/Notka.Desktop -p:Platform=x64
 ```
 
-## Konfiguracja API
-
-| Klucz | Znaczenie |
-|---|---|
-| `Notka:DbPath` | plik SQLite, domyślnie `%LOCALAPPDATA%\Notka\notka.db` |
-| `ConnectionStrings:Notka` | pełny connection string, nadpisuje `Notka:DbPath` |
-
-Baza migruje się automatycznie przy starcie. API odrzuca żądania z obcym `Host` lub z nagłówkiem `Origin`.
-
-Każde żądanie wymaga nagłówka `Authorization: Bearer <token>`. Token powstaje przy każdym uruchomieniu aplikacji
-desktopowej w pliku `%LOCALAPPDATA%\Notka\api-token` (`Notka:TokenPath` zmienia ścieżkę) i jest usuwany przy
-zamknięciu; aplikacja i serwer MCP korzystają z niego automatycznie. Adres API serwera MCP (`Notka__ApiUrl`)
-musi być literalnym adresem IP z pętli zwrotnej, np. `http://127.0.0.1:5123`.
-
-## API
-
-- `/api/tasks` - lista (`?filter=All|Today|Overdue|Upcoming|Done`), `search?q=`, get, create, update, `{id}/complete`, delete
-- `/api/notes` - lista, create, update, `{id}/pin`, `{id}/unpin`, delete
-- `/hubs/changes` - SignalR, zdarzenia `TaskChanged` i `NoteChanged`
-
-## Gotowe paczki
-
-Push do `main` i każdy pull request buduje GitHub Actions (build + testy). Tag `vX.Y.Z` tworzy release (treść z angielskiego `release-notes/vX.Y.Z.md`, a bez niego z automatycznych notatek) z jednym plikiem zip (i plikiem sumy kontrolnej), bez potrzeby
-instalowania .NET: `Notka-win-x64.zip` (rozpakuj i uruchom `Notka.Desktop.exe`; obok leży `Notka.Mcp.exe`, serwer MCP dla agentów AI). Lokalnie to samo:
+Release package:
 
 ```
 dotnet publish src/Notka.Mcp -c Release -r win-x64 --self-contained -o artifacts/desktop
 dotnet publish src/Notka.Desktop -c Release -r win-x64 -p:Platform=x64 --self-contained -o artifacts/desktop
 ```
 
-## Aktualizacje
+Pushing a `vX.Y.Z` tag makes GitHub Actions build, test and publish a release; its notes come from `release-notes/vX.Y.Z.md`.
 
-Notka sprawdza GitHub Releases raz na dobę (po 20 s od uruchomienia i co 24 h) oraz na przycisk „Sprawdź aktualizacje” w
-ustawieniach. Zapytanie jest anonimowe (`api.github.com`, nagłówek `User-Agent: Notka-Updater`), a automatyczne sprawdzanie
-wyłącza przełącznik w ustawieniach. Nowa wersja instaluje się dopiero po kliknięciu „Zainstaluj”: aplikacja pobiera
-`Notka-win-x64.zip`, porównuje sumę SHA-256 z plikiem `Notka-win-x64.zip.sha256` z tego samego wydania, rozpakowuje paczkę,
-zamyka się i skrypt podmienia pliki, po czym uruchamia Notkę ponownie. Przed podmianą powstaje kopia folderu, przywracana, gdy
-kopiowanie się nie uda (szczegóły w `%LOCALAPPDATA%\Notka\update\update.log`). Podczas podmiany działające serwery MCP z tego
-folderu są zatrzymywane, więc po aktualizacji uruchom ponownie Claude Desktop.
+## Configuration
 
-Suma kontrolna z tego samego wydania chroni przed uszkodzonym pobraniem, ale nie przed przejętym wydaniem; paczki nie są
-podpisane. Aktualizacja wymaga folderu aplikacji z prawem zapisu (np. nie `C:\Program Files`) i nie działa w wersji
-deweloperskiej. Wersja z pliku zip pochodzi z tagu wydania; wydanie `v0.1.0` nie ma tego mechanizmu, więc zaktualizuj je ręcznie.
-Adres kanału wydań można nadpisać zmienną środowiskową `NOTKA_UPDATE_FEED` (do testów).
+Data is stored in `%LOCALAPPDATA%\Notka` (`notka.db`, `settings.json`, `reminders.json`, `logs`). Keys with `:` are set as environment variables with `__` instead (`Notka__DbPath`).
 
-## Aplikacja desktopowa
+| Setting | Meaning |
+|---|---|
+| `Notka__Port` | API port, default `5123` |
+| `Notka:DbPath` | SQLite file, default `%LOCALAPPDATA%\Notka\notka.db` |
+| `ConnectionStrings:Notka` | full connection string, overrides `Notka:DbPath` |
+| `Notka:TokenPath` | where the per-launch API token is written |
+| `Notka__ApiUrl` | API address used by the MCP server, a loopback IP such as `http://127.0.0.1:5123` |
+| `NOTKA_UPDATE_FEED` | release feed URL, for testing updates |
 
-```
-dotnet run --project src/Notka.Desktop -p:Platform=x64
-```
+The API rejects requests with a foreign `Host` or any `Origin` header, and every request needs `Authorization: Bearer <token>`. The token is created at each launch in `%LOCALAPPDATA%\Notka\api-token` and removed on exit.
 
-Aplikacja uruchamia API na `127.0.0.1:5123` (zmiana: zmienna środowiskowa `Notka__Port`), pokazuje zadania i notatki i działa w trayu:
-zamknięcie okna chowa je, a `Zakończ` w menu traya lub w ustawieniach wyłącza aplikację.
-Zębatka w pasku tytułu otwiera stronę ustawień (uruchamianie z Windows, zamknięcie aplikacji); Esc lub strzałka wracają do głównego widoku.
-Przycisk widoku kompaktowego w pasku tytułu zmniejsza okno do wąskiej listy notatek (jak w Sticky Notes: dodawanie, wyszukiwanie,
-kolor i przypinanie w menu „…”) z przełącznikiem Notatki | Zadania; zadania mają wyszukiwarkę (po tytule, w bieżącej zakładce)
-także w widoku pełnym. W widoku kompaktowym pinezka włącza „zawsze na wierzchu”. Tryb i rozmiar każdego widoku są zapamiętywane.
-Obok zegara (na lewo od obszaru powiadomień, przy przycisku Widgets omijanym automatycznie) wyświetla się pasek z liczbą
-zadań na dziś, najbliższym zadaniem i liczbą zaległych; kliknięcie otwiera aplikację, najechanie pokazuje listę
-zadań na dziś, a treść jest też w podpowiedzi ikony w trayu. Pasek ukrywa się przy pełnym ekranie i gdy brakuje miejsca,
-a wyłącza go przełącznik „Pasek przy zegarze” w ustawieniach. W ustawieniach wybierasz też monitor (główny, wszystkie albo
-konkretny; każdy pasek zadań dostaje własny pasek) i czy pasek ma tło, czy jest samym tekstem. Pasek dopasowuje się do liczby
-aplikacji na pasku zadań, chowa się razem z automatycznie ukrywanym paskiem zadań (nic nie zostaje na ekranie, np. OLED) i działa przy górnej krawędzi; pionowy pasek zadań jest nieobsługiwany (informacja zostaje w podpowiedzi ikony w trayu).
-Tylko jedna instancja: ponowne uruchomienie pokazuje okno działającej aplikacji. Logi: `%LOCALAPPDATA%\Notka\logs`.
+## API
 
-## Agenci AI (serwer MCP)
+- `/api/tasks`: list (`?filter=All|Today|Overdue|Upcoming|Done`), `search?q=`, get, create, update, `{id}/complete`, delete
+- `/api/notes`: list, create, update, `{id}/pin`, `{id}/unpin`, delete
+- `/hubs/changes`: SignalR hub with `TaskChanged` and `NoteChanged` events
 
-W ustawieniach Notki przełącznik „Zezwalaj agentom AI na sterowanie Notką” (domyślnie włączony) wyłącza dołączony serwer
-MCP: po wyłączeniu jego narzędzia zwracają komunikat o wyłączonym dostępie. To nie jest granica bezpieczeństwa wobec innego
-procesu uruchomionego na Twoim koncie (ten może odczytać token z `%LOCALAPPDATA%\Notka\api-token`). Serwer MCP ze starszego,
-osobnego pliku zip nie zna tego przełącznika, więc po aktualizacji zastąp go wersją z folderu aplikacji. Przycisk „Kopiuj prompt”
-kopiuje polecenie dla agenta (Claude Desktop, Claude Code, Cursor i inne): ma dodać do swojej konfiguracji serwer stdio
-„notka” uruchamiający `Notka.Mcp.exe` z folderu aplikacji. Notka nie zmienia niczyich plików konfiguracyjnych; gdy agent nie
-potrafi sam skonfigurować serwera, pokaże, gdzie go wpisać. Odpowiada to wpisowi:
+## Project layout
 
-```json
-{
-  "mcpServers": {
-    "notka": {
-      "command": "C:\\sciezka\\do\\Notka.Mcp.exe"
-    }
-  }
-}
-```
+- `src/Notka.Core`: models and DTOs
+- `src/Notka.Api`: API library with EF Core, endpoints and SignalR
+- `src/Notka.Desktop`: WinUI 3 app
+- `src/Notka.Desktop.Core`: API and SignalR clients and view models
+- `src/Notka.Mcp`: stdio MCP server
+- `tests/Notka.Tests`: xUnit tests
 
-Z kodu źródłowego serwer budujesz poleceniem `dotnet publish src/Notka.Mcp -c Release -o artifacts/mcp`.
+## License
 
-Adres API to domyślnie `http://127.0.0.1:5123`; zmienia go zmienna środowiskowa `Notka__ApiUrl`.
-Narzędzia: `add_task`, `list_tasks`, `search_tasks`, `complete_task`, `update_task`, `create_note`, `list_notes`.
-Gdy aplikacja Notka nie działa, narzędzia zwracają czytelny komunikat.
-
-## Struktura
-
-- `src/Notka.Core` - modele i DTO
-- `src/Notka.Api` - biblioteka API: EF Core, endpointy, SignalR
-- `src/Notka.Desktop` - aplikacja WinUI 3
-- `src/Notka.Desktop.Core` - klient API, klient SignalR i ViewModele aplikacji desktopowej
-- `src/Notka.Mcp` - serwer MCP (stdio) dla agentów AI
-- `tests/Notka.Tests` - testy xUnit
-
-## Licencja
-
-[GNU GPL v3.0](LICENSE). Pasek przy zegarze inspirowały (tylko technika, bez kopiowania kodu)
-[Wireless-Device-Battery-Monitor](https://github.com/ferloom/Wireless-Device-Battery-Monitor) i
-[Battery-Monitoring](https://github.com/Diabeetus94/Battery-Monitoring).
+[GNU GPL v3.0](LICENSE). The taskbar strip was inspired by [Wireless-Device-Battery-Monitor](https://github.com/ferloom/Wireless-Device-Battery-Monitor) and [Battery-Monitoring](https://github.com/Diabeetus94/Battery-Monitoring); only the technique, no code was copied.

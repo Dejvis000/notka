@@ -8,6 +8,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Notka.Desktop.Reminders;
 using Notka.Desktop.Services;
 using Notka.Desktop.Taskbar;
 using Notka.Desktop.Updates;
@@ -31,6 +32,7 @@ namespace Notka.Desktop
         private bool _shutDown;
         private DispatcherQueueTimer[] _updateTimers = [];
         private IUpdateInstaller? _updateInstaller;
+        private ReminderService? _reminders;
 
         public App()
         {
@@ -98,9 +100,17 @@ namespace Notka.Desktop
                 ShowMainWindow,
                 tooltip => _tray!.ToolTipText = tooltip);
             _strip.Start();
+            _reminders = new ReminderService(
+                ui.GetRequiredService<INotkaApiClient>(),
+                ui.GetRequiredService<IChangesClient>(),
+                settings,
+                _dispatcher!,
+                ShowMainWindow);
+            _reminders.Start();
             _ = InitializeViewModelAsync();
             StartUpdateChecks(updates);
-            if (!Environment.GetCommandLineArgs().Contains(AutostartService.TrayArgument))
+            var launchArguments = Environment.GetCommandLineArgs();
+            if (!launchArguments.Contains(AutostartService.TrayArgument) && !launchArguments.Contains("-Embedding"))
             {
                 _window.Activate();
             }
@@ -305,6 +315,7 @@ namespace Notka.Desktop
 
             try
             {
+                _reminders?.Dispose();
                 _strip?.Dispose();
             }
             catch (Exception ex)

@@ -20,6 +20,9 @@
     <ProjectReference Include="..\Notka.Desktop.Core\Notka.Desktop.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Assets\NotkaIcon.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="H.NotifyIcon.WinUI" />
     <PackageReference Include="Microsoft.Windows.CsWin32">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

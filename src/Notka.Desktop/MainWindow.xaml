@@ -355,6 +355,14 @@
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
         <StackPanel Spacing="6">
+          <ToggleSwitch Header="Przypomnienia o zadaniach" OnContent="Włączone" OffContent="Wyłączone"
+                        AutomationProperties.Name="Przypomnienia o zadaniach"
+                        IsOn="{x:Bind Settings.Reminders, Mode=TwoWay}" />
+          <TextBlock Text="Powiadomienie 15 minut przed terminem zadania z godziną (przyciski Zrobione i Za 15 min) oraz poranne podsumowanie (od 9:00) zadań tylko z datą i zaległych."
+                     TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        <StackPanel Spacing="6">
           <TextBlock Text="{x:Bind Updates.CurrentVersionText}" Style="{StaticResource BodyStrongTextBlockStyle}" />
           <StackPanel Orientation="Horizontal" Spacing="12">
             <Button Content="Sprawdź aktualizacje" Command="{x:Bind Updates.CheckCommand}"

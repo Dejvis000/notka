@@ -35,6 +35,7 @@ namespace Notka.Desktop.ViewModels
             _monitors = monitors;
             _agents = agents;
             _allowAgents = settings.AllowAgents;
+            _reminders = settings.Reminders;
             _startWithWindows = autostart.IsEnabled;
             _showStrip = settings.ShowStrip;
             _stripTarget = settings.StripTarget;
@@ -50,6 +51,15 @@ namespace Notka.Desktop.ViewModels
         public event Action<bool>? StripBackgroundChanged;
 
         public event Action<bool>? AllowAgentsChanged;
+
+        [ObservableProperty]
+        private bool _reminders;
+
+        partial void OnRemindersChanged(bool value)
+        {
+            _settings.Reminders = value;
+            _settings.Save();
+        }
 
         public string AgentServerPath => _agents?.ServerPath ?? string.Empty;
 
