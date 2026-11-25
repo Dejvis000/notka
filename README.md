@@ -7,7 +7,7 @@ Private tasks and sticky notes for Windows 11, with a live summary next to the t
 ## Features
 
 - **Tasks** with due dates and Today, Overdue, Later, No date and Done views, plus search.
-- **Sticky notes** with colors, pinning and search, and a compact window in the style of Windows Sticky Notes.
+- **Sticky notes** with colors, pinning and search, a compact window in the style of Windows Sticky Notes, and notes you can pull out onto the desktop as small windows that remember their place.
 - **Taskbar strip** next to the clock: today's tasks at a glance, a hover card with the list, on one or all monitors, text only or with a background, hidden together with an auto-hidden taskbar.
 - **Reminders** as Windows notifications: 15 minutes before a task that has a time (Done and Snooze buttons), and a morning summary (from 9:00) of tasks that only have a date and of overdue ones.
 - **AI agents**: a bundled MCP server lets Claude Desktop, Claude Code, Cursor and others add and read tasks and notes. A setting switches it off.

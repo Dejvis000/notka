@@ -235,6 +235,60 @@ namespace Notka.Tests
         }
 
         [Fact]
+        public async Task Text_typed_while_a_save_is_in_flight_is_kept_and_stays_dirty()
+        {
+            _api.AddNote(new StickyNote { Content = "a" });
+            var notes = new NotesViewModel(_api);
+            await notes.RefreshAsync();
+            var note = notes.Visible[0];
+            note.Content = "ab";
+            _api.UpdateGate = new TaskCompletionSource();
+
+            var saving = note.SaveCommand.ExecuteAsync(null);
+            note.Content = "abc";
+            _api.UpdateGate.SetResult();
+            await saving;
+
+            Assert.Equal("abc", note.Content);
+            Assert.True(note.IsDirty);
+            Assert.Equal("ab", _api.Notes[0].Content);
+        }
+
+        [Fact]
+        public async Task A_successful_refresh_reports_the_current_notes_and_a_failed_one_does_not()
+        {
+            _api.AddNote(new StickyNote { Content = "a" });
+            _api.AddNote(new StickyNote { Content = "b" });
+            var notes = new NotesViewModel(_api);
+            var reports = new List<int[]>();
+            notes.Refreshed += list => reports.Add(list.Select(n => n.Id).Order().ToArray());
+
+            await notes.RefreshAsync();
+            _api.Notes.RemoveAt(0);
+            await notes.RefreshAsync();
+            _api.Fail = new NotkaApiException("offline");
+            await notes.RefreshAsync();
+
+            Assert.Equal(2, reports.Count);
+            Assert.Equal(2, reports[0].Length);
+            Assert.Single(reports[1]);
+        }
+
+        [Fact]
+        public async Task Sending_a_note_to_the_desktop_raises_a_request_for_that_note()
+        {
+            _api.AddNote(new StickyNote { Content = "a" });
+            var notes = new NotesViewModel(_api);
+            await notes.RefreshAsync();
+            NoteViewModel? requested = null;
+            notes.DesktopRequested += n => requested = n;
+
+            notes.Visible[0].SendToDesktopCommand.Execute(null);
+
+            Assert.Same(notes.Visible[0], requested);
+        }
+
+        [Fact]
         public async Task Live_changes_and_reconnects_refresh_the_lists()
         {
             var changes = new FakeChanges();
@@ -488,13 +542,20 @@ namespace Notka.Tests
                 return System.Threading.Tasks.Task.FromResult(note);
             }
 
-            public Task<StickyNote> UpdateNoteAsync(int id, NoteRequest request, CancellationToken cancellationToken = default)
+            public TaskCompletionSource? UpdateGate { get; set; }
+
+            public async Task<StickyNote> UpdateNoteAsync(int id, NoteRequest request, CancellationToken cancellationToken = default)
             {
                 Throw();
                 var note = Notes.Single(n => n.Id == id);
                 note.Content = request.Content;
                 note.Color = request.Color;
-                return System.Threading.Tasks.Task.FromResult(note);
+                if (UpdateGate is not null)
+                {
+                    await UpdateGate.Task;
+                }
+
+                return note;
             }
 
             public Task<StickyNote> SetNotePinnedAsync(int id, bool pinned, CancellationToken cancellationToken = default)

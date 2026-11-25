@@ -53,6 +53,9 @@ namespace Notka.Desktop.ViewModels
         private Task SaveAsync() => _owner.SaveAsync(this);
 
         [RelayCommand]
+        private void SendToDesktop() => _owner.RequestDesktop(this);
+
+        [RelayCommand]
         private Task TogglePinAsync() => _owner.SetPinnedAsync(this, !Pinned);
 
         [RelayCommand]

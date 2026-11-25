@@ -1,0 +1,81 @@
+<Window
+    x:Class="Notka.Desktop.DesktopNoteWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Notka.Desktop">
+
+  <Grid x:Name="Root" RowDefinitions="32,*,Auto" Padding="0,0,0,6"
+        Background="{x:Bind local:UiFunctions.NoteBrush(Note.Color), Mode=OneWay}">
+    <Grid.Resources>
+      <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+      <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+      <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+      <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+      <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+      <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+      <SolidColorBrush x:Key="TextControlForeground" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="ButtonForeground" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#22000000" />
+      <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#33000000" />
+      <SolidColorBrush x:Key="ToggleButtonForeground" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="ToggleButtonForegroundPointerOver" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="ToggleButtonForegroundPressed" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="ToggleButtonForegroundChecked" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPointerOver" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="ToggleButtonForegroundCheckedPressed" Color="#2B2B2B" />
+      <SolidColorBrush x:Key="ToggleButtonBackground" Color="Transparent" />
+      <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#22000000" />
+      <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#33000000" />
+      <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#33000000" />
+      <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#44000000" />
+      <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#44000000" />
+      <SolidColorBrush x:Key="ToggleButtonBorderBrush" Color="Transparent" />
+      <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="Transparent" />
+    </Grid.Resources>
+
+    <Grid x:Name="DragArea" Background="Transparent" />
+
+    <TextBox Grid.Row="1" Margin="8,0,8,0" Text="{x:Bind Note.Content, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+             AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Segoe Print" FontSize="16" MaxLength="10000"
+             Padding="6,4" AutomationProperties.Name="Treść notatki"
+             ScrollViewer.VerticalScrollBarVisibility="Auto" TextChanged="Content_TextChanged" />
+
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="2" Margin="8,4,8,0">
+      <ToggleButton x:Name="OnTopToggle" Content="Na wierzchu" FontSize="12" Padding="8,4"
+                    ToolTipService.ToolTip="Trzymaj tę notatkę nad innymi oknami" AutomationProperties.Name="Na wierzchu"
+                    Click="OnTop_Click" />
+      <Button Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Zmień kolor" AutomationProperties.Name="Zmień kolor">
+        <FontIcon FontSize="14" Glyph="&#xE790;" />
+        <Button.Flyout>
+          <Flyout>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Command="{x:Bind Note.SetColorCommand}" CommandParameter="yellow" Width="28" Height="28"
+                      ToolTipService.ToolTip="Żółty" AutomationProperties.Name="Żółty"
+                      Background="{x:Bind local:UiFunctions.NoteBrush('yellow')}" />
+              <Button Command="{x:Bind Note.SetColorCommand}" CommandParameter="blue" Width="28" Height="28"
+                      ToolTipService.ToolTip="Niebieski" AutomationProperties.Name="Niebieski"
+                      Background="{x:Bind local:UiFunctions.NoteBrush('blue')}" />
+              <Button Command="{x:Bind Note.SetColorCommand}" CommandParameter="green" Width="28" Height="28"
+                      ToolTipService.ToolTip="Zielony" AutomationProperties.Name="Zielony"
+                      Background="{x:Bind local:UiFunctions.NoteBrush('green')}" />
+              <Button Command="{x:Bind Note.SetColorCommand}" CommandParameter="pink" Width="28" Height="28"
+                      ToolTipService.ToolTip="Różowy" AutomationProperties.Name="Różowy"
+                      Background="{x:Bind local:UiFunctions.NoteBrush('pink')}" />
+              <Button Command="{x:Bind Note.SetColorCommand}" CommandParameter="purple" Width="28" Height="28"
+                      ToolTipService.ToolTip="Fioletowy" AutomationProperties.Name="Fioletowy"
+                      Background="{x:Bind local:UiFunctions.NoteBrush('purple')}" />
+            </StackPanel>
+          </Flyout>
+        </Button.Flyout>
+      </Button>
+      <Button Command="{x:Bind Note.DeleteCommand}" Background="Transparent" BorderThickness="0"
+              ToolTipService.ToolTip="Usuń notatkę" AutomationProperties.Name="Usuń notatkę">
+        <FontIcon FontSize="14" Glyph="&#xE74D;" />
+      </Button>
+    </StackPanel>
+  </Grid>
+</Window>

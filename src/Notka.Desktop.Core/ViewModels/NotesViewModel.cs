@@ -60,12 +60,19 @@ namespace Notka.Desktop.ViewModels
 
                 Error = null;
                 ApplyFilter();
+                Refreshed?.Invoke(_all.ToList());
             }
             catch (NotkaApiException ex)
             {
                 Error = ex.Message;
             }
         }
+
+        public event Action<IReadOnlyList<NoteViewModel>>? Refreshed;
+
+        public event Action<NoteViewModel>? DesktopRequested;
+
+        internal void RequestDesktop(NoteViewModel note) => DesktopRequested?.Invoke(note);
 
         [RelayCommand]
         private void ToggleSearch()
@@ -104,9 +111,10 @@ namespace Notka.Desktop.ViewModels
 
         internal async Task SaveAsync(NoteViewModel note)
         {
-            if (await RunAsync(() => _api.UpdateNoteAsync(note.Id, new NoteRequest { Content = note.Content, Color = note.Color })))
+            var saved = note.Content;
+            if (await RunAsync(() => _api.UpdateNoteAsync(note.Id, new NoteRequest { Content = saved, Color = note.Color })))
             {
-                note.IsDirty = false;
+                note.IsDirty = note.Content != saved;
                 await RefreshAsync();
             }
         }
@@ -121,9 +129,10 @@ namespace Notka.Desktop.ViewModels
 
         internal async Task SetColorAsync(NoteViewModel note, string color)
         {
-            if (await RunAsync(() => _api.UpdateNoteAsync(note.Id, new NoteRequest { Content = note.Content, Color = color })))
+            var saved = note.Content;
+            if (await RunAsync(() => _api.UpdateNoteAsync(note.Id, new NoteRequest { Content = saved, Color = color })))
             {
-                note.IsDirty = false;
+                note.IsDirty = note.Content != saved;
                 await RefreshAsync();
             }
         }

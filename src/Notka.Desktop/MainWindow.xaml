@@ -187,6 +187,10 @@
                          Padding="6,4" AutomationProperties.Name="Treść notatki"
                          ScrollViewer.VerticalScrollBarVisibility="Auto" LostFocus="Note_LostFocus" />
                 <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="2">
+                  <Button Command="{x:Bind SendToDesktopCommand}" Background="Transparent" BorderThickness="0"
+                          ToolTipService.ToolTip="Pokaż na pulpicie" AutomationProperties.Name="Pokaż na pulpicie">
+                    <FontIcon FontSize="14" Glyph="&#xE8A7;" />
+                  </Button>
                   <Button Command="{x:Bind TogglePinCommand}" Background="Transparent" BorderThickness="0"
                           ToolTipService.ToolTip="{x:Bind local:UiFunctions.PinLabel(Pinned), Mode=OneWay}"
                           AutomationProperties.Name="{x:Bind local:UiFunctions.PinLabel(Pinned), Mode=OneWay}">
@@ -298,6 +302,7 @@
                     <FontIcon FontSize="14" Glyph="&#xE712;" />
                     <Button.Flyout>
                       <MenuFlyout>
+                        <MenuFlyoutItem Text="Pokaż na pulpicie" Command="{x:Bind SendToDesktopCommand}" />
                         <MenuFlyoutItem Text="{x:Bind local:UiFunctions.PinLabel(Pinned), Mode=OneWay}"
                                         Command="{x:Bind TogglePinCommand}" />
                         <MenuFlyoutSubItem Text="Kolor">

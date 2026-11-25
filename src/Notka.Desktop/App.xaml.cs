@@ -33,6 +33,7 @@ namespace Notka.Desktop
         private DispatcherQueueTimer[] _updateTimers = [];
         private IUpdateInstaller? _updateInstaller;
         private ReminderService? _reminders;
+        private DesktopNotesManager? _desktopNotes;
 
         public App()
         {
@@ -85,6 +86,7 @@ namespace Notka.Desktop
             _api.SetAgentAccess(settings.AllowAgents);
             settings.AllowAgentsChanged += _api.SetAgentAccess;
             _viewModel = ui.GetRequiredService<MainViewModel>();
+            _desktopNotes = new DesktopNotesManager(_viewModel.Notes, DesktopNotesStore.Load(DesktopNotesStore.DefaultPath()));
             var updates = ui.GetRequiredService<UpdateViewModel>();
             _updateInstaller = ui.GetRequiredService<IUpdateInstaller>();
             ShowPreviousUpdateResult(updates);
@@ -297,6 +299,7 @@ namespace Notka.Desktop
                 return false;
             }
 
+            _desktopNotes?.Shutdown();
             _window.StoreCurrentSize();
             _window.AllowClose = true;
             _window.Close();
@@ -312,6 +315,7 @@ namespace Notka.Desktop
             }
 
             _shutDown = true;
+            _desktopNotes?.Shutdown();
             foreach (var timer in _updateTimers)
             {
                 timer.Stop();
