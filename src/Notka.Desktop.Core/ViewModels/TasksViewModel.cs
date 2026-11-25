@@ -61,6 +61,9 @@ namespace Notka.Desktop.ViewModels
         private DateTime? _newDueDate;
 
         [ObservableProperty]
+        private TimeSpan? _newDueTime;
+
+        [ObservableProperty]
         private string? _error;
 
         [RelayCommand]
@@ -110,10 +113,11 @@ namespace Notka.Desktop.ViewModels
             TaskItem created;
             try
             {
-                var dueAt = NewDueDate ?? (SelectedTab == TaskTab.Today ? DateTime.Today : null);
+                var dueAt = CombineDue(NewDueDate, NewDueTime, SelectedTab == TaskTab.Today ? DateTime.Today : null);
                 created = await _api.CreateTaskAsync(new TaskRequest { Title = title, DueAt = dueAt });
                 NewTitle = string.Empty;
                 NewDueDate = null;
+                NewDueTime = null;
                 SearchText = string.Empty;
                 Error = null;
             }
@@ -131,6 +135,13 @@ namespace Notka.Desktop.ViewModels
             }
 
             await RefreshAsync();
+        }
+
+        public static DateTime? CombineDue(DateTime? date, TimeSpan? time, DateTime? defaultDate)
+        {
+            var day = date?.Date ?? (time is not null ? DateTime.Today : defaultDate?.Date);
+            var picked = time == TimeSpan.Zero ? TimeSpan.FromMinutes(1) : time;
+            return day is { } d ? (picked is { } t ? d + t : d) : null;
         }
 
         private static TaskTab TabFor(TaskItem task)

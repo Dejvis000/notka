@@ -178,6 +178,15 @@ namespace Notka.Desktop
         private void DuePicker_DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args) =>
             ViewModel.Tasks.NewDueDate = args.NewDate?.DateTime;
 
+        private void DueTime_SelectedTimeChanged(TimePicker sender, TimePickerSelectedValueChangedEventArgs args) =>
+            ViewModel.Tasks.NewDueTime = args.NewTime;
+
+        private void ClearDue_Click(object sender, RoutedEventArgs e)
+        {
+            DuePicker.Date = null;
+            DueTimePicker.SelectedTime = null;
+        }
+
         private async void AddTask_Click(object sender, RoutedEventArgs e) => await AddTaskAsync();
 
         private async void NewTaskBox_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -212,6 +221,11 @@ namespace Notka.Desktop
             if (!ViewModel.Tasks.NewDueDate.HasValue)
             {
                 DuePicker.Date = null;
+            }
+
+            if (!ViewModel.Tasks.NewDueTime.HasValue)
+            {
+                DueTimePicker.SelectedTime = null;
             }
         }
     }

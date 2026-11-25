@@ -83,14 +83,21 @@
         <SelectorBarItem Text="Zrobione" Tag="Done" />
       </SelectorBar>
 
-      <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-        <TextBox x:Name="NewTaskBox" PlaceholderText="Nowe zadanie" MaxLength="500"
+      <Grid Grid.Row="2" ColumnDefinitions="*,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+        <TextBox Grid.ColumnSpan="2" x:Name="NewTaskBox" PlaceholderText="Nowe zadanie" MaxLength="500"
                  Text="{x:Bind ViewModel.Tasks.NewTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                  KeyDown="NewTaskBox_KeyDown" />
-        <CalendarDatePicker Grid.Column="1" x:Name="DuePicker" PlaceholderText="Termin"
-                            DateChanged="DuePicker_DateChanged" />
         <Button Grid.Column="2" Content="Dodaj" Style="{StaticResource AccentButtonStyle}"
                 Click="AddTask_Click" />
+        <CalendarDatePicker Grid.Row="1" x:Name="DuePicker" PlaceholderText="Termin" HorizontalAlignment="Stretch"
+                            DateChanged="DuePicker_DateChanged" />
+        <TimePicker Grid.Row="1" Grid.Column="1" x:Name="DueTimePicker" ClockIdentifier="24HourClock" MinuteIncrement="5"
+                    MinWidth="0" HorizontalAlignment="Stretch" AutomationProperties.Name="Godzina terminu"
+                    SelectedTimeChanged="DueTime_SelectedTimeChanged" />
+        <Button Grid.Row="1" Grid.Column="2" Click="ClearDue_Click" Padding="10,6"
+                ToolTipService.ToolTip="Wyczyść termin i godzinę" AutomationProperties.Name="Wyczyść termin i godzinę">
+          <FontIcon FontSize="14" Glyph="&#xE894;" />
+        </Button>
       </Grid>
 
       <InfoBar Grid.Row="3" Severity="Error" IsClosable="False"

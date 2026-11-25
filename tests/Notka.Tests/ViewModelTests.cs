@@ -74,6 +74,35 @@ namespace Notka.Tests
         }
 
         [Fact]
+        public async Task A_picked_time_is_combined_with_the_picked_date_and_cleared_after_adding()
+        {
+            var tasks = new TasksViewModel(_api)
+            {
+                NewTitle = "Spotkanie",
+                NewDueDate = DateTime.Today.AddDays(2),
+                NewDueTime = new TimeSpan(14, 30, 0),
+            };
+
+            await tasks.AddAsync();
+
+            Assert.Equal(DateTime.Today.AddDays(2).AddHours(14).AddMinutes(30), Assert.Single(_api.Tasks).DueAt);
+            Assert.Null(tasks.NewDueTime);
+            Assert.Null(tasks.NewDueDate);
+        }
+
+        [Fact]
+        public void A_time_without_a_date_means_today_and_a_date_without_a_time_stays_at_midnight()
+        {
+            var today = DateTime.Today;
+
+            Assert.Equal(today.AddHours(9), TasksViewModel.CombineDue(null, new TimeSpan(9, 0, 0), null));
+            Assert.Equal(today.AddDays(1), TasksViewModel.CombineDue(today.AddDays(1), null, today));
+            Assert.Equal(today, TasksViewModel.CombineDue(null, null, today));
+            Assert.Equal(today.AddMinutes(1), TasksViewModel.CombineDue(today, TimeSpan.Zero, null));
+            Assert.Null(TasksViewModel.CombineDue(null, null, null));
+        }
+
+        [Fact]
         public async Task A_blank_title_does_not_create_a_task()
         {
             var tasks = new TasksViewModel(_api) { NewTitle = "   " };
