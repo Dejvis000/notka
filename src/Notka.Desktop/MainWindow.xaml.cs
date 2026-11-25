@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Notka.Desktop.Updates;
 using Notka.Desktop.ViewModels;
 using Windows.Graphics;
 using Windows.System;
@@ -19,11 +20,12 @@ namespace Notka.Desktop
         private const int CompactMinWidth = 340;
         private const int CompactMinHeight = 300;
 
-        public MainWindow(MainViewModel viewModel, SettingsViewModel settings, WindowModeViewModel windowMode)
+        public MainWindow(MainViewModel viewModel, SettingsViewModel settings, WindowModeViewModel windowMode, UpdateViewModel updates)
         {
             ViewModel = viewModel;
             Settings = settings;
             WindowMode = windowMode;
+            Updates = updates;
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
             SetTitleBar(TitleBarArea);
@@ -40,6 +42,8 @@ namespace Notka.Desktop
         public SettingsViewModel Settings { get; }
 
         public WindowModeViewModel WindowMode { get; }
+
+        public UpdateViewModel Updates { get; }
 
         public bool AllowClose { get; set; }
 

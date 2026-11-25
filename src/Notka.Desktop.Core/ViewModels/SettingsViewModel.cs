@@ -9,6 +9,12 @@ namespace Notka.Desktop.ViewModels
     public interface IAppLifetime
     {
         void RequestExit();
+
+        Task<bool> TryExitAsync()
+        {
+            RequestExit();
+            return Task.FromResult(true);
+        }
     }
 
     public partial class SettingsViewModel : ObservableObject

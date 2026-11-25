@@ -40,22 +40,27 @@ jobs:
 
       - name: Publish
         run: |
-          dotnet publish src/Notka.Mcp -c Release -r win-x64 --self-contained -o artifacts/desktop
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          dotnet publish src/Notka.Mcp -c Release -r win-x64 --self-contained -p:Version=$version -o artifacts/desktop
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet publish src/Notka.Desktop -c Release -r win-x64 -p:Platform=x64 --self-contained -o artifacts/desktop
+          dotnet publish src/Notka.Desktop -c Release -r win-x64 -p:Platform=x64 --self-contained -p:Version=$version -o artifacts/desktop
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           foreach ($exe in "Notka.Desktop.exe", "Notka.Mcp.exe") {
             if (-not (Test-Path "artifacts/desktop/$exe")) { throw "$exe is missing from the package" }
           }
           Compress-Archive -Path artifacts/desktop/* -DestinationPath Notka-win-x64.zip
+          $hash = (Get-FileHash Notka-win-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          [IO.File]::WriteAllText("Notka-win-x64.zip.sha256", "$hash  Notka-win-x64.zip`n")
 
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $notes = "release-notes/${{ github.ref_name }}.md"
+          $flags = @()
+          if ("${{ github.ref_name }}" -match '-') { $flags += '--prerelease' }
           if (Test-Path $notes) {
-            gh release create "${{ github.ref_name }}" Notka-win-x64.zip --title "${{ github.ref_name }}" --notes-file $notes
+            gh release create "${{ github.ref_name }}" Notka-win-x64.zip Notka-win-x64.zip.sha256 --title "${{ github.ref_name }}" --notes-file $notes @flags
           } else {
-            gh release create "${{ github.ref_name }}" Notka-win-x64.zip --generate-notes
+            gh release create "${{ github.ref_name }}" Notka-win-x64.zip Notka-win-x64.zip.sha256 --generate-notes @flags
           }

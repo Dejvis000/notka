@@ -36,13 +36,28 @@ musi być literalnym adresem IP z pętli zwrotnej, np. `http://127.0.0.1:5123`.
 
 ## Gotowe paczki
 
-Push do `main` i każdy pull request buduje GitHub Actions (build + testy). Tag `vX.Y.Z` tworzy release (treść z angielskiego `release-notes/vX.Y.Z.md`, a bez niego z automatycznych notatek) z jednym plikiem zip, bez potrzeby
+Push do `main` i każdy pull request buduje GitHub Actions (build + testy). Tag `vX.Y.Z` tworzy release (treść z angielskiego `release-notes/vX.Y.Z.md`, a bez niego z automatycznych notatek) z jednym plikiem zip (i plikiem sumy kontrolnej), bez potrzeby
 instalowania .NET: `Notka-win-x64.zip` (rozpakuj i uruchom `Notka.Desktop.exe`; obok leży `Notka.Mcp.exe`, serwer MCP dla agentów AI). Lokalnie to samo:
 
 ```
 dotnet publish src/Notka.Mcp -c Release -r win-x64 --self-contained -o artifacts/desktop
 dotnet publish src/Notka.Desktop -c Release -r win-x64 -p:Platform=x64 --self-contained -o artifacts/desktop
 ```
+
+## Aktualizacje
+
+Notka sprawdza GitHub Releases raz na dobę (po 20 s od uruchomienia i co 24 h) oraz na przycisk „Sprawdź aktualizacje” w
+ustawieniach. Zapytanie jest anonimowe (`api.github.com`, nagłówek `User-Agent: Notka-Updater`), a automatyczne sprawdzanie
+wyłącza przełącznik w ustawieniach. Nowa wersja instaluje się dopiero po kliknięciu „Zainstaluj”: aplikacja pobiera
+`Notka-win-x64.zip`, porównuje sumę SHA-256 z plikiem `Notka-win-x64.zip.sha256` z tego samego wydania, rozpakowuje paczkę,
+zamyka się i skrypt podmienia pliki, po czym uruchamia Notkę ponownie. Przed podmianą powstaje kopia folderu, przywracana, gdy
+kopiowanie się nie uda (szczegóły w `%LOCALAPPDATA%\Notka\update\update.log`). Podczas podmiany działające serwery MCP z tego
+folderu są zatrzymywane, więc po aktualizacji uruchom ponownie Claude Desktop.
+
+Suma kontrolna z tego samego wydania chroni przed uszkodzonym pobraniem, ale nie przed przejętym wydaniem; paczki nie są
+podpisane. Aktualizacja wymaga folderu aplikacji z prawem zapisu (np. nie `C:\Program Files`) i nie działa w wersji
+deweloperskiej. Wersja z pliku zip pochodzi z tagu wydania; wydanie `v0.1.0` nie ma tego mechanizmu, więc zaktualizuj je ręcznie.
+Adres kanału wydań można nadpisać zmienną środowiskową `NOTKA_UPDATE_FEED` (do testów).
 
 ## Aplikacja desktopowa
 

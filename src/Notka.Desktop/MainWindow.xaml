@@ -355,6 +355,28 @@
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
         <StackPanel Spacing="6">
+          <TextBlock Text="{x:Bind Updates.CurrentVersionText}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button Content="Sprawdź aktualizacje" Command="{x:Bind Updates.CheckCommand}"
+                    IsEnabled="{x:Bind local:UiFunctions.Not(Updates.IsBusy), Mode=OneWay}" />
+            <Button Content="{x:Bind Updates.InstallLabel, Mode=OneWay}" Command="{x:Bind Updates.InstallCommand}"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Visibility="{x:Bind local:UiFunctions.VisibleWhen(Updates.HasUpdate), Mode=OneWay}"
+                    IsEnabled="{x:Bind Updates.CanInstall, Mode=OneWay}" />
+          </StackPanel>
+          <TextBlock Text="{x:Bind Updates.Status, Mode=OneWay}" TextWrapping="Wrap"
+                     Style="{StaticResource CaptionTextBlockStyle}"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                     Visibility="{x:Bind local:UiFunctions.VisibleWhenText(Updates.Status), Mode=OneWay}" />
+          <ProgressBar Maximum="100"
+                       Value="{x:Bind Updates.ProgressValue, Mode=OneWay}"
+                       IsIndeterminate="{x:Bind Updates.ProgressIsIndeterminate, Mode=OneWay}"
+                       Visibility="{x:Bind local:UiFunctions.VisibleWhen(Updates.IsInstalling), Mode=OneWay}" />
+          <ToggleSwitch Header="Sprawdzaj aktualizacje automatycznie (GitHub)" OnContent="Włączone" OffContent="Wyłączone"
+                        AutomationProperties.Name="Sprawdzaj aktualizacje automatycznie"
+                        IsOn="{x:Bind Updates.AutoCheck, Mode=TwoWay}" />
+        </StackPanel>
+        <StackPanel Spacing="6">
           <ToggleSwitch Header="Zezwalaj agentom AI na sterowanie Notką" OnContent="Włączone" OffContent="Wyłączone"
                         AutomationProperties.Name="Zezwalaj agentom AI na sterowanie Notką"
                         IsOn="{x:Bind Settings.AllowAgents, Mode=TwoWay}" />
@@ -377,8 +399,29 @@
       </ScrollViewer>
     </Grid>
 
-    <InfoBar Grid.Row="2" Severity="Warning" IsClosable="False"
-             IsOpen="{x:Bind local:UiFunctions.HasText(ViewModel.Status), Mode=OneWay}"
-             Message="{x:Bind ViewModel.Status, Mode=OneWay}" />
+    <StackPanel Grid.Row="2">
+      <InfoBar Severity="Warning" IsClosable="False"
+               IsOpen="{x:Bind local:UiFunctions.HasText(ViewModel.Status), Mode=OneWay}"
+               Message="{x:Bind ViewModel.Status, Mode=OneWay}" />
+      <InfoBar Severity="Informational" IsClosable="False"
+               IsOpen="{x:Bind Updates.ShowBanner, Mode=OneWay}"
+               Message="{x:Bind Updates.BannerText, Mode=OneWay}">
+        <InfoBar.ActionButton>
+          <Button Content="Zainstaluj" Command="{x:Bind Updates.InstallCommand}"
+                  Visibility="{x:Bind local:UiFunctions.VisibleWhenOnly(Updates.HasUpdate, Updates.IsInstalling), Mode=OneWay}"
+                  IsEnabled="{x:Bind Updates.CanInstall, Mode=OneWay}" />
+        </InfoBar.ActionButton>
+        <ProgressBar Margin="0,0,0,12" Maximum="100"
+                     Value="{x:Bind Updates.ProgressValue, Mode=OneWay}"
+                     IsIndeterminate="{x:Bind Updates.ProgressIsIndeterminate, Mode=OneWay}"
+                     Visibility="{x:Bind local:UiFunctions.VisibleWhen(Updates.IsInstalling), Mode=OneWay}" />
+      </InfoBar>
+      <InfoBar Severity="Success"
+               IsOpen="{x:Bind local:UiFunctions.HasText(Updates.SuccessMessage), Mode=OneWay}"
+               Message="{x:Bind Updates.SuccessMessage, Mode=OneWay}" />
+      <InfoBar Severity="Error"
+               IsOpen="{x:Bind local:UiFunctions.HasText(Updates.FailureMessage), Mode=OneWay}"
+               Message="{x:Bind Updates.FailureMessage, Mode=OneWay}" />
+    </StackPanel>
   </Grid>
 </Window>

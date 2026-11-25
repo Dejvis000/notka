@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using System.Reflection;
 using CommunityToolkit.Mvvm.Input;
 using H.NotifyIcon;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Notka.Desktop.Services;
 using Notka.Desktop.Taskbar;
+using Notka.Desktop.Updates;
 using Notka.Desktop.ViewModels;
 using Serilog;
 using Windows.Graphics;
@@ -27,6 +29,8 @@ namespace Notka.Desktop
         private bool _exiting;
         private DateTime? _exitWarnedAt;
         private bool _shutDown;
+        private DispatcherQueueTimer[] _updateTimers = [];
+        private IUpdateInstaller? _updateInstaller;
 
         public App()
         {
@@ -79,7 +83,10 @@ namespace Notka.Desktop
             _api.SetAgentAccess(settings.AllowAgents);
             settings.AllowAgentsChanged += _api.SetAgentAccess;
             _viewModel = ui.GetRequiredService<MainViewModel>();
-            _window = new MainWindow(_viewModel, ui.GetRequiredService<SettingsViewModel>(), ui.GetRequiredService<WindowModeViewModel>());
+            var updates = ui.GetRequiredService<UpdateViewModel>();
+            _updateInstaller = ui.GetRequiredService<IUpdateInstaller>();
+            ShowPreviousUpdateResult(updates);
+            _window = new MainWindow(_viewModel, ui.GetRequiredService<SettingsViewModel>(), ui.GetRequiredService<WindowModeViewModel>(), updates);
             _window.Closed += async (_, _) => await ShutdownAsync();
 
             CreateTray();
@@ -92,6 +99,7 @@ namespace Notka.Desktop
                 tooltip => _tray!.ToolTipText = tooltip);
             _strip.Start();
             _ = InitializeViewModelAsync();
+            StartUpdateChecks(updates);
             if (!Environment.GetCommandLineArgs().Contains(AutostartService.TrayArgument))
             {
                 _window.Activate();
@@ -122,6 +130,7 @@ namespace Notka.Desktop
             services.AddSingleton(AppSettings.Load(AppSettings.DefaultPath()));
             services.AddSingleton<IMonitorLister, MonitorLister>();
             services.AddSingleton<IAgentConnector, AgentConnector>();
+            AddUpdates(services);
             services.AddSingleton<SettingsViewModel>();
             services.AddSingleton<WindowModeViewModel>();
             services.AddHttpClient<INotkaApiClient, NotkaApiClient>(client =>
@@ -133,6 +142,85 @@ namespace Notka.Desktop
             services.AddSingleton<IChangesClient>(_ => new ChangesClient(apiUrl, token));
             services.AddTransient<MainViewModel>();
             return services.BuildServiceProvider();
+        }
+
+        private static void AddUpdates(IServiceCollection services)
+        {
+            var current = AppVersion.Parse(typeof(App).Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion) ?? AppVersion.Dev;
+            var feedUrl = Uri.TryCreate(Environment.GetEnvironmentVariable("NOTKA_UPDATE_FEED"), UriKind.Absolute, out var custom) && UpdateInstaller.IsTrusted(custom)
+                ? custom
+                : new Uri(GitHubUpdateFeed.DefaultUrl);
+            services.AddHttpClient("updates", client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(20);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Notka-Updater");
+                client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            });
+            services.AddHttpClient("update-download", client =>
+            {
+                client.Timeout = Timeout.InfiniteTimeSpan;
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("Notka-Updater");
+            });
+            services.AddSingleton<IUpdateFeed>(provider =>
+                new GitHubUpdateFeed(provider.GetRequiredService<IHttpClientFactory>().CreateClient("updates"), feedUrl));
+            services.AddSingleton<IUpdateInstaller>(provider =>
+                new UpdateInstaller(provider.GetRequiredService<IHttpClientFactory>().CreateClient("update-download"), current));
+            services.AddSingleton(provider => new UpdateViewModel(
+                provider.GetRequiredService<IUpdateFeed>(),
+                provider.GetRequiredService<IUpdateInstaller>(),
+                provider.GetRequiredService<IAppLifetime>(),
+                provider.GetRequiredService<AppSettings>(),
+                current));
+        }
+
+        private static void ShowPreviousUpdateResult(UpdateViewModel updates)
+        {
+            try
+            {
+                if (!File.Exists(UpdateInstaller.ResultPath))
+                {
+                    return;
+                }
+
+                var result = UpdateResult.TryParse(File.ReadAllText(UpdateInstaller.ResultPath));
+                File.Delete(UpdateInstaller.ResultPath);
+                if (result is not null)
+                {
+                    updates.ShowResult(result);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Log.Warning(ex, "Could not read the previous update result");
+            }
+        }
+
+        private void StartUpdateChecks(UpdateViewModel updates)
+        {
+            if (updates.IsDevelopmentBuild)
+            {
+                return;
+            }
+
+            async void Check(DispatcherQueueTimer sender, object args)
+            {
+                if (updates.AutoCheck)
+                {
+                    await updates.CheckAsync(manual: false);
+                }
+            }
+
+            var first = _dispatcher!.CreateTimer();
+            first.Interval = TimeSpan.FromSeconds(20);
+            first.IsRepeating = false;
+            first.Tick += Check;
+            var daily = _dispatcher.CreateTimer();
+            daily.Interval = TimeSpan.FromHours(24);
+            daily.Tick += Check;
+            _updateTimers = [first, daily];
+            first.Start();
+            daily.Start();
         }
 
         private void CreateTray()
@@ -167,11 +255,13 @@ namespace Notka.Desktop
             _window.Activate();
         }
 
-        private async Task ExitAsync()
+        public Task<bool> TryExitAsync() => ExitAsync();
+
+        private async Task<bool> ExitAsync()
         {
             if (_exiting || _window is null || _viewModel is null)
             {
-                return;
+                return _exiting;
             }
 
             _exiting = true;
@@ -190,13 +280,14 @@ namespace Notka.Desktop
                 _exitWarnedAt = DateTime.UtcNow;
                 _exiting = false;
                 ShowMainWindow();
-                return;
+                return false;
             }
 
             _window.StoreCurrentSize();
             _window.AllowClose = true;
             _window.Close();
             await ShutdownAsync();
+            return true;
         }
 
         private async Task ShutdownAsync()
@@ -207,6 +298,11 @@ namespace Notka.Desktop
             }
 
             _shutDown = true;
+            foreach (var timer in _updateTimers)
+            {
+                timer.Stop();
+            }
+
             try
             {
                 _strip?.Dispose();
@@ -239,6 +335,7 @@ namespace Notka.Desktop
             finally
             {
                 _tray?.Dispose();
+                _updateInstaller?.LaunchStaged();
                 Exit();
             }
         }
