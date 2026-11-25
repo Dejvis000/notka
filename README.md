@@ -97,3 +97,9 @@ Gdy aplikacja Notka nie działa, narzędzia zwracają czytelny komunikat.
 - `tests/Notka.Tests` - testy xUnit
 
 Plan i postęp: [docs/PLAN.md](docs/PLAN.md). Zasady projektu: [CLAUDE.md](CLAUDE.md).
+
+## Licencja
+
+[GNU GPL v3.0](LICENSE). Pasek przy zegarze inspirowały (tylko technika, bez kopiowania kodu)
+[Wireless-Device-Battery-Monitor](https://github.com/ferloom/Wireless-Device-Battery-Monitor) i
+[Battery-Monitoring](https://github.com/Diabeetus94/Battery-Monitoring).
