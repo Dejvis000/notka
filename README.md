@@ -34,6 +34,17 @@ musi być literalnym adresem IP z pętli zwrotnej, np. `http://127.0.0.1:5123`.
 - `/api/notes` - lista, create, update, `{id}/pin`, `{id}/unpin`, delete
 - `/hubs/changes` - SignalR, zdarzenia `TaskChanged` i `NoteChanged`
 
+## Gotowe paczki
+
+Push do `main` i każdy pull request buduje GitHub Actions (build + testy). Tag `vX.Y.Z` tworzy release z dwoma plikami zip, bez potrzeby
+instalowania .NET: `Notka-Desktop-win-x64.zip` (rozpakuj i uruchom `Notka.Desktop.exe`) oraz `Notka-Mcp-win-x64.zip`
+(ścieżka do `Notka.Mcp.exe` trafia do konfiguracji Claude Desktop). Lokalnie to samo:
+
+```
+dotnet publish src/Notka.Desktop -c Release -r win-x64 -p:Platform=x64 --self-contained -o artifacts/desktop
+dotnet publish src/Notka.Mcp -c Release -r win-x64 --self-contained -o artifacts/mcp
+```
+
 ## Aplikacja desktopowa
 
 ```
