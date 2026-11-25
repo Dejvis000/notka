@@ -38,6 +38,16 @@ namespace Notka.Tests
         }
 
         [Fact]
+        public void A_strip_hidden_together_with_an_auto_hidden_taskbar_is_reported_as_hidden_not_unavailable()
+        {
+            var settings = Create();
+
+            settings.ReportStripState(StripState.Hidden);
+
+            Assert.Equal("Pasek jest ukryty razem z paskiem zadań.", settings.StripStatus);
+        }
+
+        [Fact]
         public void The_strip_background_is_on_by_default_and_the_choice_is_saved_and_announced()
         {
             var settings = Create();

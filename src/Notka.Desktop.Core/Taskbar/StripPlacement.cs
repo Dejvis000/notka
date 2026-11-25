@@ -10,6 +10,7 @@ namespace Notka.Desktop.Taskbar
     public static class StripPlacement
     {
         private const int MinTaskbarThickness = 16;
+        private const int ShownTolerance = 2;
 
         public static PixelRect? Compute(
             PixelRect taskbar,
@@ -19,10 +20,11 @@ namespace Notka.Desktop.Taskbar
             int desiredWidth,
             int height,
             int gap,
-            int minWidth)
+            int minWidth,
+            PixelRect? monitor = null)
         {
             var horizontal = taskbar.Width > taskbar.Height;
-            if (!horizontal || taskbar.Height < MinTaskbarThickness || lastTaskButton is not { } buttons)
+            if (!horizontal || taskbar.Height < MinTaskbarThickness || lastTaskButton is not { } buttons || !IsShown(taskbar, monitor))
             {
                 return null;
             }
@@ -40,5 +42,11 @@ namespace Notka.Desktop.Taskbar
             var top = taskbar.Top + ((taskbar.Height - stripHeight) / 2);
             return new PixelRect(right - width, top, right, top + stripHeight);
         }
+
+        // An auto-hidden taskbar keeps its height and slides off the monitor.
+        private static bool IsShown(PixelRect taskbar, PixelRect? monitor) =>
+            monitor is not { } m
+            || (taskbar.Left >= m.Left - ShownTolerance && taskbar.Top >= m.Top - ShownTolerance
+                && taskbar.Right <= m.Right + ShownTolerance && taskbar.Bottom <= m.Bottom + ShownTolerance);
     }
 }

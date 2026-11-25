@@ -301,6 +301,8 @@ namespace Notka.Desktop.Taskbar
 
             _wasEnabled = snapshot.Enabled;
             var anyPlaced = false;
+            var anySlidOut = false;
+            var anyShownFailed = false;
             if (active)
             {
                 var wanted = new HashSet<IntPtr>();
@@ -336,9 +338,21 @@ namespace Notka.Desktop.Taskbar
                         Place(GetSurface(taskbar), rect, scale, snapshot, force);
                         anyPlaced = true;
                     }
-                    else if (_surfaces.TryGetValue(taskbar, out var unplaced))
+                    else
                     {
-                        Hide(unplaced);
+                        if (IsSlidOut(taskbar))
+                        {
+                            anySlidOut = true;
+                        }
+                        else
+                        {
+                            anyShownFailed = true;
+                        }
+
+                        if (_surfaces.TryGetValue(taskbar, out var unplaced))
+                        {
+                            Hide(unplaced);
+                        }
                     }
                 }
 
@@ -347,11 +361,17 @@ namespace Notka.Desktop.Taskbar
                     Destroy(_surfaces[gone]);
                 }
 
-                _tracker.Report(anyPlaced);
-                if (_reportedState != _tracker.State)
+                var allHidden = !anyPlaced && !anyShownFailed && anySlidOut;
+                if (!allHidden)
                 {
-                    _reportedState = _tracker.State;
-                    StateChanged?.Invoke(_tracker.State);
+                    _tracker.Report(anyPlaced);
+                }
+
+                var state = allHidden ? StripState.Hidden : _tracker.State;
+                if (_reportedState != state)
+                {
+                    _reportedState = state;
+                    StateChanged?.Invoke(state);
                 }
             }
             else
@@ -404,8 +424,19 @@ namespace Notka.Desktop.Taskbar
                 desiredWidth,
                 height,
                 (int)Math.Round(8 * scale),
-                (int)Math.Round(120 * scale));
+                (int)Math.Round(120 * scale),
+                MonitorRect(taskbarWindow));
         }
+
+        private static bool IsSlidOut(IntPtr taskbar) =>
+            StripNative.GetWindowRect(taskbar, out var rect)
+            && MonitorRect(taskbar) is { } monitor
+            && (rect.Bottom > monitor.Bottom + 2 || rect.Top < monitor.Top - 2 || rect.Right > monitor.Right + 2 || rect.Left < monitor.Left - 2);
+
+        private static PixelRect? MonitorRect(IntPtr window) =>
+            StripNative.InfoOf(StripNative.MonitorFromWindow(window, StripNative.MonitorDefaultToNearest)) is { } info
+                ? new PixelRect(info.Monitor.Left, info.Monitor.Top, info.Monitor.Right, info.Monitor.Bottom)
+                : null;
 
         private Surface GetSurface(IntPtr taskbar)
         {

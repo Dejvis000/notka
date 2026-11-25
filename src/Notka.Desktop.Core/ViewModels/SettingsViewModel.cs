@@ -138,6 +138,7 @@ namespace Notka.Desktop.ViewModels
             : state switch
             {
                 StripState.Visible => "Pasek jest widoczny przy zegarze.",
+                StripState.Hidden => "Pasek jest ukryty razem z paskiem zadań.",
                 StripState.Unavailable => "Pasek jest niedostępny (brak miejsca lub zasłonięty pasek zadań). Informacja jest w podpowiedzi ikony w trayu.",
                 _ => "Pasek się uruchamia.",
             };

@@ -98,6 +98,19 @@ namespace Notka.Tests
         }
 
         [Fact]
+        public void An_auto_hidden_taskbar_sliding_off_the_monitor_hides_the_strip_until_it_is_shown()
+        {
+            var monitor = new PixelRect(0, 0, 3440, 1440);
+            var tray = new PixelRect(3194, 1392, 3440, 1440);
+            var buttons = new PixelRect(0, 1392, 400, 1440);
+            var hidden = new PixelRect(0, 1438, 3440, 1486);
+            var shown = new PixelRect(0, 1392, 3440, 1440);
+
+            Assert.Null(StripPlacement.Compute(hidden, tray with { Top = 1438, Bottom = 1486 }, null, buttons with { Top = 1438, Bottom = 1486 }, 240, 36, 8, 120, monitor));
+            Assert.NotNull(StripPlacement.Compute(shown, tray, null, buttons, 240, 36, 8, 120, monitor));
+        }
+
+        [Fact]
         public void The_card_opens_above_a_bottom_taskbar_and_below_a_top_taskbar()
         {
             var work = new PixelRect(0, 0, 3440, 1392);

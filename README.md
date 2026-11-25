@@ -62,7 +62,7 @@ zadań na dziś, najbliższym zadaniem i liczbą zaległych; kliknięcie otwiera
 zadań na dziś, a treść jest też w podpowiedzi ikony w trayu. Pasek ukrywa się przy pełnym ekranie i gdy brakuje miejsca,
 a wyłącza go przełącznik „Pasek przy zegarze” w ustawieniach. W ustawieniach wybierasz też monitor (główny, wszystkie albo
 konkretny; każdy pasek zadań dostaje własny pasek) i czy pasek ma tło, czy jest samym tekstem. Pasek dopasowuje się do liczby
-aplikacji na pasku zadań i działa przy górnej krawędzi; pionowy pasek zadań jest nieobsługiwany (informacja zostaje w podpowiedzi ikony w trayu).
+aplikacji na pasku zadań, chowa się razem z automatycznie ukrywanym paskiem zadań (nic nie zostaje na ekranie, np. OLED) i działa przy górnej krawędzi; pionowy pasek zadań jest nieobsługiwany (informacja zostaje w podpowiedzi ikony w trayu).
 Tylko jedna instancja: ponowne uruchomienie pokazuje okno działającej aplikacji. Logi: `%LOCALAPPDATA%\Notka\logs`.
 
 ## Serwer MCP dla Claude Desktop

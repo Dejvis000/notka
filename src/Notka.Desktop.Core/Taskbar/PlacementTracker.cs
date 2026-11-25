@@ -5,6 +5,7 @@ namespace Notka.Desktop.Taskbar
         Starting,
         Visible,
         Unavailable,
+        Hidden,
     }
 
     public sealed class PlacementTracker(int failuresBeforeFallback = 3)
