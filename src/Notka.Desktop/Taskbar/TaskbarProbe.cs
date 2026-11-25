@@ -136,6 +136,7 @@ namespace Notka.Desktop.Taskbar
             int? trayLeft = null;
             PixelRect? widgets = null;
             var walker = automation.RawViewWalker;
+            StripNative.GetWindowRect(taskbar, out var bar);
             Visit(walker, automation.ElementFromHandle(new HWND(taskbar)), 0);
             return new TaskbarLayout(repeaterRight ?? buttonsRight ?? startRight, widgets, trayLeft);
 
@@ -156,7 +157,7 @@ namespace Notka.Desktop.Taskbar
                 {
                     startRight = rect.right;
                 }
-                else if (id is "SystemTrayIcon" or "NotifyItemIcon" && rect.right > rect.left)
+                else if (id is "SystemTrayIcon" or "NotifyItemIcon" && rect.right > rect.left && rect.top >= bar.Top && rect.bottom <= bar.Bottom)
                 {
                     trayLeft = Math.Min(trayLeft ?? int.MaxValue, rect.left);
                 }

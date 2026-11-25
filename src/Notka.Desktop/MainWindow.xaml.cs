@@ -186,14 +186,18 @@ namespace Notka.Desktop
             }
         }
 
-        private void DueTimeBox_TextChanged(object sender, TextChangedEventArgs e)
+        private void DueTime_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
         {
-            if (!_syncingDue)
+            if (_syncingDue)
             {
-                ViewModel.Tasks.NewDueTime = TimeSpan.TryParseExact(DueTimeBox.Text.Trim(), ["h\\:mm", "hh\\:mm"],
-                    System.Globalization.CultureInfo.InvariantCulture, out var time) && time < TimeSpan.FromDays(1) ? time : null;
-                UpdateDueText();
+                return;
             }
+
+            var minute = double.IsNaN(DueMinuteBox.Value) ? 0 : Math.Floor(DueMinuteBox.Value);
+            ViewModel.Tasks.NewDueTime = double.IsNaN(DueHourBox.Value)
+                ? null
+                : TimeSpan.FromMinutes((Math.Floor(DueHourBox.Value) * 60) + minute);
+            UpdateDueText();
         }
 
         private void ClearDue_Click(object sender, RoutedEventArgs e)
@@ -207,7 +211,8 @@ namespace Notka.Desktop
         {
             _syncingDue = true;
             DueCalendar.SelectedDates.Clear();
-            DueTimeBox.Text = string.Empty;
+            DueHourBox.Value = double.NaN;
+            DueMinuteBox.Value = double.NaN;
             _syncingDue = false;
             UpdateDueText();
         }

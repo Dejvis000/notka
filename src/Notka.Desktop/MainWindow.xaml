@@ -99,8 +99,12 @@
             <Flyout Placement="Bottom">
               <StackPanel Spacing="8">
                 <CalendarView x:Name="DueCalendar" SelectionMode="Single" SelectedDatesChanged="DueCalendar_SelectedDatesChanged" />
-                <TextBox x:Name="DueTimeBox" Header="Godzina (gg:mm)" PlaceholderText="np. 14:30" MaxLength="5"
-                         TextChanged="DueTimeBox_TextChanged" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <NumberBox x:Name="DueHourBox" Header="Godzina" PlaceholderText="gg" Minimum="0" Maximum="23"
+                             SpinButtonPlacementMode="Inline" SmallChange="1" Width="110" ValueChanged="DueTime_ValueChanged" />
+                  <NumberBox x:Name="DueMinuteBox" Header="Minuta" PlaceholderText="mm" Minimum="0" Maximum="59"
+                             SpinButtonPlacementMode="Inline" SmallChange="5" Width="110" ValueChanged="DueTime_ValueChanged" />
+                </StackPanel>
               </StackPanel>
             </Flyout>
           </Button.Flyout>

@@ -92,6 +92,12 @@ namespace Notka.Desktop.Taskbar
             public double Scale { get; set; } = 1.0;
 
             public string? RenderedKey { get; set; }
+
+            public PixelRect? PendingMove { get; set; }
+
+            public long PendingSince { get; set; }
+
+            public long FailingSince { get; set; }
         }
 
         public void Start()
@@ -285,6 +291,9 @@ namespace Notka.Desktop.Taskbar
             }
         }
 
+        private const int MoveSettleMilliseconds = 450;
+        private const int HideGraceMilliseconds = 1500;
+
         private void Apply(bool force)
         {
             Snapshot snapshot;
@@ -351,7 +360,16 @@ namespace Notka.Desktop.Taskbar
 
                         if (_surfaces.TryGetValue(taskbar, out var unplaced))
                         {
-                            Hide(unplaced);
+                            var now = Environment.TickCount64;
+                            unplaced.FailingSince = unplaced.FailingSince == 0 ? now : unplaced.FailingSince;
+                            if (unplaced.Visible && !anySlidOut && now - unplaced.FailingSince < HideGraceMilliseconds)
+                            {
+                                anyPlaced = true;
+                            }
+                            else
+                            {
+                                Hide(unplaced);
+                            }
                         }
                     }
                 }
@@ -472,15 +490,32 @@ namespace Notka.Desktop.Taskbar
                 surface.Renderer.Render(snapshot.Content.Text, snapshot.LightTheme, surface.Hover, snapshot.Background, rect.Width, rect.Height, scale);
                 surface.RenderedKey = key;
                 Present(surface, rect);
+                surface.Placed = rect;
+                surface.PendingMove = null;
             }
-            else if (surface.Placed != rect)
+            else if (surface.Placed != rect && MoveSettled(surface, rect))
             {
                 StripNative.SetWindowPos(surface.Window, StripNative.HwndTopmost, rect.Left, rect.Top, 0, 0, StripNative.SwpNoSize | StripNative.SwpNoActivate);
+                surface.Placed = rect;
+                surface.PendingMove = null;
             }
 
-            surface.Placed = rect;
+            surface.FailingSince = 0;
             surface.Scale = scale;
             KeepAboveTaskbar(surface);
+        }
+
+        private static bool MoveSettled(Surface surface, PixelRect rect)
+        {
+            var now = Environment.TickCount64;
+            if (surface.PendingMove != rect)
+            {
+                surface.PendingMove = rect;
+                surface.PendingSince = now;
+                return false;
+            }
+
+            return now - surface.PendingSince >= MoveSettleMilliseconds;
         }
 
         private void Present(Surface surface, PixelRect rect)
