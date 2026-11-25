@@ -74,11 +74,12 @@ namespace Notka.Tests
             var config = Config(("Notka:TokenPath", TokenPath));
             var first = ApiToken.CreateNew(config);
             var reader = new FileStream(TokenPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            _ = Task.Run(async () =>
+            new Thread(() =>
             {
-                await Task.Delay(80);
+                Thread.Sleep(80);
                 reader.Dispose();
-            }, TestContext.Current.CancellationToken);
+            })
+            { IsBackground = true }.Start();
 
             var second = ApiToken.CreateNew(config);
 
