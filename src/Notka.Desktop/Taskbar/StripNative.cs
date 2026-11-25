@@ -21,7 +21,33 @@ namespace Notka.Desktop.Taskbar
 
         public static readonly IntPtr HwndTopmost = new(-1);
 
+        public const uint EventObjectShow = 0x8002;
+        public const uint GwOwner = 4;
+        public const int GwlExStyle = -20;
+        public const uint EventObjectHide = 0x8003;
+        public const uint GaRoot = 2;
+        public const uint WineventOutOfContext = 0;
+
         public delegate IntPtr WindowProcedure(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+
+        public const uint MonitorDefaultToNearest = 2;
+        public const uint MonitorPrimary = 1;
+
+        public delegate bool MonitorEnumProcedure(IntPtr monitor, IntPtr dc, ref Rect rect, IntPtr data);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public struct MonitorInfoEx
+        {
+            public uint Size;
+            public Rect Monitor;
+            public Rect Work;
+            public uint Flags;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+            public string Device;
+        }
+
+        public delegate void WinEventProcedure(IntPtr hook, uint eventId, IntPtr window, int objectId, int childId, uint thread, uint time);
 
         [StructLayout(LayoutKind.Sequential)]
         public struct Point
@@ -160,6 +186,35 @@ namespace Notka.Desktop.Taskbar
 
         [DllImport("user32.dll")]
         public static extern uint GetDpiForWindow(IntPtr window);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module, WinEventProcedure procedure, uint processId, uint threadId, uint flags);
+
+        [DllImport("user32.dll")]
+        public static extern bool UnhookWinEvent(IntPtr hook);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetAncestor(IntPtr window, uint flags);
+
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
+        public static extern int GetWindowLong(IntPtr window, int index);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
+
+        [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW", CharSet = CharSet.Unicode)]
+        public static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfoEx info);
+
+        [DllImport("user32.dll")]
+        public static extern bool EnumDisplayMonitors(IntPtr dc, IntPtr clip, MonitorEnumProcedure procedure, IntPtr data);
+
+        public static MonitorInfoEx? InfoOf(IntPtr monitor)
+        {
+            var info = new MonitorInfoEx { Size = (uint)Marshal.SizeOf<MonitorInfoEx>() };
+            return monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref info) ? info : null;
+        }
+
+        public static string? DeviceOf(IntPtr window) => InfoOf(MonitorFromWindow(window, MonitorDefaultToNearest))?.Device;
 
         [DllImport("shell32.dll")]
         public static extern int SHQueryUserNotificationState(out int state);

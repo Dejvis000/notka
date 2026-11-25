@@ -44,12 +44,16 @@ namespace Notka.Desktop.Taskbar
             _host.StateChanged += OnStateChanged;
             _changes.TaskChanged += OnTaskChanged;
             _settings.ShowStripChanged += _host.SetEnabled;
+            _settings.StripTargetChanged += _host.SetTarget;
+            _settings.StripBackgroundChanged += _host.SetBackground;
             _uiSettings.ColorValuesChanged += OnColorsChanged;
 
             _timer = _dispatcher.CreateTimer();
             _timer.Interval = RefreshInterval;
             _timer.Tick += OnTimerTick;
             _host.Start();
+            _host.SetTarget(_settings.StripTarget);
+            _host.SetBackground(_settings.StripBackground);
             _host.SetEnabled(_settings.ShowStrip);
             _timer.Start();
             _ = RefreshAsync();
@@ -63,6 +67,8 @@ namespace Notka.Desktop.Taskbar
             _host.StateChanged -= OnStateChanged;
             _changes.TaskChanged -= OnTaskChanged;
             _settings.ShowStripChanged -= _host.SetEnabled;
+            _settings.StripTargetChanged -= _host.SetTarget;
+            _settings.StripBackgroundChanged -= _host.SetBackground;
             _uiSettings.ColorValuesChanged -= OnColorsChanged;
             _timer?.Stop();
             _cardTimer?.Stop();
@@ -131,7 +137,7 @@ namespace Notka.Desktop.Taskbar
                     _card.PointerOverChanged += SetCardHover;
                 }
 
-                _card.ShowAbove(strip, _content.CardLines, _host.Scale);
+                _card.Show(strip, _content.CardLines, _host.Scale);
             }
             else
             {
@@ -154,7 +160,7 @@ namespace Notka.Desktop.Taskbar
                 _host.Update(content, IsSystemThemeLight());
                 if (_card is not null && (_stripHover || _cardHover) && _host.Bounds is { } strip)
                 {
-                    _card.ShowAbove(strip, content.CardLines, _host.Scale);
+                    _card.Show(strip, content.CardLines, _host.Scale);
                 }
 
                 var tooltip = content.Text.StartsWith("Notka:", StringComparison.Ordinal) ? content.Text : $"Notka: {content.Text}";

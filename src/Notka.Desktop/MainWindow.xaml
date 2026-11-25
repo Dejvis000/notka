@@ -343,6 +343,12 @@
           <ToggleSwitch Header="Pasek przy zegarze" OnContent="Pokazuj" OffContent="Ukryty"
                         AutomationProperties.Name="Pasek przy zegarze"
                         IsOn="{x:Bind Settings.ShowStrip, Mode=TwoWay}" />
+          <ToggleSwitch Header="Tło paska" OnContent="Z tłem" OffContent="Sam tekst"
+                        AutomationProperties.Name="Tło paska"
+                        IsOn="{x:Bind Settings.StripBackground, Mode=TwoWay}" />
+          <ComboBox Header="Pasek na monitorze" MinWidth="280" AutomationProperties.Name="Pasek na monitorze"
+                    ItemsSource="{x:Bind Settings.StripTargetOptions}" DisplayMemberPath="Label"
+                    SelectedValuePath="Id" SelectedValue="{x:Bind Settings.StripTarget, Mode=TwoWay}" />
           <TextBlock Text="{x:Bind Settings.StripStatus, Mode=OneWay}" TextWrapping="Wrap"
                      Style="{StaticResource CaptionTextBlockStyle}"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

@@ -1,7 +1,6 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
 
@@ -36,7 +35,7 @@ namespace Notka.Desktop.Taskbar
 
         public event Action<bool>? PointerOverChanged;
 
-        public void ShowAbove(PixelRect strip, IReadOnlyList<string> lines, double scale)
+        public void Show(PixelRect strip, IReadOnlyList<string> lines, double scale)
         {
             _lines.Children.Clear();
             _lines.Children.Add(new TextBlock { Text = "Dziś", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
@@ -53,9 +52,13 @@ namespace Notka.Desktop.Taskbar
             var width = (int)Math.Round(Width * scale);
             var rows = Math.Max(lines.Count, 1) + 1;
             var height = (int)Math.Round(((2 * Padding) + (rows * LineHeight)) * scale);
-            var gap = (int)Math.Round(8 * scale);
-            var x = Math.Max(0, strip.Right - width);
-            var y = Math.Max(0, strip.Top - height - gap);
+            var work = DisplayArea.GetFromRect(new RectInt32(strip.Left, strip.Top, strip.Width, strip.Height), DisplayAreaFallback.Nearest).WorkArea;
+            var (x, y) = CardPlacement.Compute(
+                strip,
+                new PixelRect(work.X, work.Y, work.X + work.Width, work.Y + work.Height),
+                width,
+                height,
+                (int)Math.Round(8 * scale));
             AppWindow.MoveAndResize(new RectInt32(x, y, width, height));
             AppWindow.Show(false);
         }

@@ -13,28 +13,29 @@ namespace Notka.Desktop.Taskbar
         private const uint WmLeftButtonUp = 0x0202;
         private const uint WmMouseLeave = 0x02A3;
         private const uint WmDestroy = 0x0002;
-        private const uint TickMilliseconds = 1000;
+        private const uint TickMilliseconds = 250;
 
         private static readonly StripNative.WindowProcedure Procedure = WindowProc;
+        private static readonly StripNative.WinEventProcedure EventProcedure = OnWinEvent;
         private static TaskbarStripHost? s_instance;
 
         private readonly Thread _thread;
         private readonly ManualResetEventSlim _ready = new();
         private readonly TaskbarProbe _probe = new();
-        private readonly PlacementTracker _tracker = new();
+        private readonly PlacementTracker _tracker = new(failuresBeforeFallback: 3000 / (int)TickMilliseconds);
         private readonly object _gate = new();
-        private Snapshot _snapshot = new(StripContent.Unavailable, false, false);
+        private readonly Dictionary<IntPtr, Surface> _surfaces = [];
+        private readonly Dictionary<IntPtr, Surface> _byWindow = [];
+        private Snapshot _snapshot = new(StripContent.Unavailable, false, false, StripTargets.Primary, true);
         private PixelRect? _bounds;
+        private double _scale = 1.0;
 
-        private IntPtr _window;
-        private StripRenderer? _renderer;
-        private bool _hover;
-        private bool _trackingMouse;
-        private bool _visible;
+        private IntPtr _hub;
+        private IntPtr _hook;
+        private StripRenderer? _measurer;
+        private Surface? _lastHover;
         private bool _wasEnabled;
         private StripState? _reportedState;
-        private PixelRect? _placed;
-        private string? _renderedKey;
 
         public TaskbarStripHost()
         {
@@ -48,7 +49,16 @@ namespace Notka.Desktop.Taskbar
 
         public event Action<StripState>? StateChanged;
 
-        public double Scale { get; private set; } = 1.0;
+        public double Scale
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _scale;
+                }
+            }
+        }
 
         public PixelRect? Bounds
         {
@@ -61,7 +71,28 @@ namespace Notka.Desktop.Taskbar
             }
         }
 
-        private sealed record Snapshot(StripContent Content, bool LightTheme, bool Enabled);
+        private sealed record Snapshot(StripContent Content, bool LightTheme, bool Enabled, string Target, bool Background);
+
+        private sealed class Surface(IntPtr taskbar, IntPtr window, StripRenderer renderer)
+        {
+            public IntPtr Taskbar { get; } = taskbar;
+
+            public IntPtr Window { get; } = window;
+
+            public StripRenderer Renderer { get; } = renderer;
+
+            public bool Hover { get; set; }
+
+            public bool TrackingMouse { get; set; }
+
+            public bool Visible { get; set; }
+
+            public PixelRect? Placed { get; set; }
+
+            public double Scale { get; set; } = 1.0;
+
+            public string? RenderedKey { get; set; }
+        }
 
         public void Start()
         {
@@ -71,23 +102,14 @@ namespace Notka.Desktop.Taskbar
 
         public void Update(StripContent content, bool lightTheme)
         {
-            lock (_gate)
-            {
-                _snapshot = _snapshot with { Content = content, LightTheme = lightTheme };
-            }
-
-            Post(WmUpdate);
+            Change(snapshot => snapshot with { Content = content, LightTheme = lightTheme });
         }
 
-        public void SetEnabled(bool enabled)
-        {
-            lock (_gate)
-            {
-                _snapshot = _snapshot with { Enabled = enabled };
-            }
+        public void SetEnabled(bool enabled) => Change(snapshot => snapshot with { Enabled = enabled });
 
-            Post(WmUpdate);
-        }
+        public void SetBackground(bool background) => Change(snapshot => snapshot with { Background = background });
+
+        public void SetTarget(string target) => Change(snapshot => snapshot with { Target = target });
 
         public void Dispose()
         {
@@ -103,35 +125,45 @@ namespace Notka.Desktop.Taskbar
         private static IntPtr WindowProc(IntPtr window, uint message, IntPtr wParam, IntPtr lParam)
         {
             var host = s_instance;
-            if (host is not null && host._window == window)
+            if (host is not null)
             {
                 try
                 {
-                    switch (message)
+                    if (host._hub == window)
                     {
-                        case WmTimer:
-                            host.Apply(force: false);
-                            return IntPtr.Zero;
-                        case WmUpdate:
-                            host._probe.Poke();
-                            host.Apply(force: true);
-                            return IntPtr.Zero;
-                        case WmQuit:
-                            StripNative.DestroyWindow(window);
-                            return IntPtr.Zero;
-                        case WmMouseMove:
-                            host.OnMouseMove();
-                            return IntPtr.Zero;
-                        case WmMouseLeave:
-                            host.SetHover(false);
-                            return IntPtr.Zero;
-                        case WmLeftButtonUp:
-                            host.Clicked?.Invoke();
-                            return IntPtr.Zero;
-                        case WmDestroy:
-                            StripNative.KillTimer(window, 1);
-                            StripNative.PostQuitMessage(0);
-                            return IntPtr.Zero;
+                        switch (message)
+                        {
+                            case WmTimer:
+                                host.Apply(force: false);
+                                return IntPtr.Zero;
+                            case WmUpdate:
+                                host._probe.Poke();
+                                host.Apply(force: true);
+                                return IntPtr.Zero;
+                            case WmQuit:
+                                host.DestroySurfaces();
+                                StripNative.DestroyWindow(window);
+                                return IntPtr.Zero;
+                            case WmDestroy:
+                                StripNative.KillTimer(window, 1);
+                                StripNative.PostQuitMessage(0);
+                                return IntPtr.Zero;
+                        }
+                    }
+                    else if (host._byWindow.TryGetValue(window, out var surface))
+                    {
+                        switch (message)
+                        {
+                            case WmMouseMove:
+                                host.OnMouseMove(surface);
+                                return IntPtr.Zero;
+                            case WmMouseLeave:
+                                host.SetHover(surface, false);
+                                return IntPtr.Zero;
+                            case WmLeftButtonUp:
+                                host.Clicked?.Invoke();
+                                return IntPtr.Zero;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -144,6 +176,19 @@ namespace Notka.Desktop.Taskbar
             return StripNative.DefaultWindowProcedure(window, message, wParam, lParam);
         }
 
+        private static void OnWinEvent(IntPtr hook, uint eventId, IntPtr window, int objectId, int childId, uint thread, uint time)
+        {
+            if (objectId == 0 && window != IntPtr.Zero && IsTaskbarCandidate(window))
+            {
+                s_instance?._probe.Burst();
+            }
+        }
+
+        private static bool IsTaskbarCandidate(IntPtr window) =>
+            StripNative.GetAncestor(window, StripNative.GaRoot) == window
+            && StripNative.GetWindow(window, StripNative.GwOwner) == IntPtr.Zero
+            && (StripNative.GetWindowLong(window, StripNative.GwlExStyle) & StripNative.WsExToolWindow) == 0;
+
         private static bool IsFullScreenBusy()
         {
             if (StripNative.SHQueryUserNotificationState(out var state) < 0)
@@ -154,10 +199,20 @@ namespace Notka.Desktop.Taskbar
             return state is 2 or 3 or 4;
         }
 
+        private void Change(Func<Snapshot, Snapshot> change)
+        {
+            lock (_gate)
+            {
+                _snapshot = change(_snapshot);
+            }
+
+            Post(WmUpdate);
+        }
+
         private void Run()
         {
             s_instance = this;
-            _renderer = new StripRenderer();
+            _measurer = new StripRenderer();
             var instance = Marshal.GetHINSTANCE(typeof(TaskbarStripHost).Module);
             var windowClass = new StripNative.WindowClass
             {
@@ -168,20 +223,9 @@ namespace Notka.Desktop.Taskbar
                 ClassName = ClassName,
             };
             StripNative.RegisterClass(ref windowClass);
-            _window = StripNative.CreateWindow(
-                StripNative.WsExLayered | StripNative.WsExNoActivate | StripNative.WsExToolWindow | StripNative.WsExTopmost,
-                ClassName,
-                "Notka",
-                StripNative.WsPopup,
-                0,
-                0,
-                1,
-                1,
-                IntPtr.Zero,
-                IntPtr.Zero,
-                instance,
-                IntPtr.Zero);
-            StripNative.SetTimer(_window, 1, TickMilliseconds, IntPtr.Zero);
+            _hub = StripNative.CreateWindow(0, ClassName, "Notka", 0, 0, 0, 0, 0, new IntPtr(-3), IntPtr.Zero, instance, IntPtr.Zero);
+            StripNative.SetTimer(_hub, 1, TickMilliseconds, IntPtr.Zero);
+            _hook = StripNative.SetWinEventHook(StripNative.EventObjectShow,StripNative.EventObjectHide, IntPtr.Zero, EventProcedure, 0, 0, StripNative.WineventOutOfContext);
             _ready.Set();
 
             while (StripNative.GetMessage(out var message, IntPtr.Zero, 0, 0) > 0)
@@ -190,42 +234,52 @@ namespace Notka.Desktop.Taskbar
                 StripNative.DispatchMessage(ref message);
             }
 
-            _renderer.Dispose();
+            if (_hook != IntPtr.Zero)
+            {
+                StripNative.UnhookWinEvent(_hook);
+            }
+
+            _measurer.Dispose();
             s_instance = null;
         }
 
-        private void OnMouseMove()
+        private void OnMouseMove(Surface surface)
         {
-            if (!_trackingMouse)
+            if (!surface.TrackingMouse)
             {
                 var track = new StripNative.TrackMouseEvent
                 {
                     Size = (uint)Marshal.SizeOf<StripNative.TrackMouseEvent>(),
                     Flags = StripNative.TmeLeave,
-                    Window = _window,
+                    Window = surface.Window,
                 };
                 StripNative.TrackMouse(ref track);
-                _trackingMouse = true;
+                surface.TrackingMouse = true;
             }
 
-            SetHover(true);
+            SetHover(surface, true);
         }
 
-        private void SetHover(bool hover)
+        private void SetHover(Surface surface, bool hover)
         {
             if (!hover)
             {
-                _trackingMouse = false;
+                surface.TrackingMouse = false;
             }
 
-            if (_hover == hover)
+            if (surface.Hover == hover)
             {
                 return;
             }
 
-            _hover = hover;
-            Apply(force: true);
-            if (_hover == hover)
+            surface.Hover = hover;
+            if (hover)
+            {
+                _lastHover = surface;
+            }
+
+            Apply(force: false);
+            if (surface.Hover == hover)
             {
                 HoverChanged?.Invoke(hover);
             }
@@ -239,7 +293,6 @@ namespace Notka.Desktop.Taskbar
                 snapshot = _snapshot;
             }
 
-            var target = Measure(snapshot, out var scale, out var taskbarWindow);
             var active = snapshot.Enabled && !IsFullScreenBusy();
             if (snapshot.Enabled && !_wasEnabled)
             {
@@ -247,65 +300,105 @@ namespace Notka.Desktop.Taskbar
             }
 
             _wasEnabled = snapshot.Enabled;
+            var anyPlaced = false;
             if (active)
             {
-                _tracker.Report(target is not null);
+                var wanted = new HashSet<IntPtr>();
+                var primary = StripNative.FindWindow("Shell_TrayWnd", null);
+                var taskbars = _probe.Layouts.Keys.ToList();
+                if (primary != IntPtr.Zero && !taskbars.Contains(primary))
+                {
+                    taskbars.Insert(0, primary);
+                }
+
+                var target = snapshot.Target;
+                if (target is not (StripTargets.Primary or StripTargets.All) && !taskbars.Any(t => StripNative.DeviceOf(t) == target))
+                {
+                    target = StripTargets.Primary;
+                }
+
+                foreach (var taskbar in taskbars)
+                {
+                    var chosen = target switch
+                    {
+                        StripTargets.All => true,
+                        StripTargets.Primary => taskbar == primary,
+                        _ => StripNative.DeviceOf(taskbar) == target,
+                    };
+                    if (!chosen)
+                    {
+                        continue;
+                    }
+
+                    wanted.Add(taskbar);
+                    if (Measure(snapshot, taskbar, taskbar == primary, out var scale) is { } rect)
+                    {
+                        Place(GetSurface(taskbar), rect, scale, snapshot, force);
+                        anyPlaced = true;
+                    }
+                    else if (_surfaces.TryGetValue(taskbar, out var unplaced))
+                    {
+                        Hide(unplaced);
+                    }
+                }
+
+                foreach (var gone in _surfaces.Keys.Where(t => !wanted.Contains(t)).ToList())
+                {
+                    Destroy(_surfaces[gone]);
+                }
+
+                _tracker.Report(anyPlaced);
                 if (_reportedState != _tracker.State)
                 {
                     _reportedState = _tracker.State;
                     StateChanged?.Invoke(_tracker.State);
                 }
             }
-
-            if (!active || target is not { } rect)
+            else
             {
-                Hide();
-                return;
+                foreach (var surface in _surfaces.Values)
+                {
+                    Hide(surface);
+                }
             }
 
-            var key = $"{snapshot.Content.Text}|{snapshot.LightTheme}|{_hover}|{rect.Width}|{rect.Height}|{scale}";
-            if (force || key != _renderedKey || !_visible)
-            {
-                _renderer!.Render(snapshot.Content.Text, snapshot.LightTheme, _hover, rect.Width, rect.Height, scale);
-                _renderedKey = key;
-                Present(rect);
-            }
-            else if (_placed != rect)
-            {
-                StripNative.SetWindowPos(_window, StripNative.HwndTopmost, rect.Left, rect.Top, 0, 0, StripNative.SwpNoSize | StripNative.SwpNoActivate);
-            }
-
-            _placed = rect;
-            Scale = scale;
-            SetBounds(rect);
-            KeepAboveTaskbar(taskbarWindow);
+            PublishBounds();
         }
 
-        private PixelRect? Measure(Snapshot snapshot, out double scale, out IntPtr taskbarWindow)
+        private PixelRect? Measure(Snapshot snapshot, IntPtr taskbarWindow, bool primary, out double scale)
         {
             scale = 1.0;
-            taskbarWindow = StripNative.FindWindow("Shell_TrayWnd", null);
-            if (taskbarWindow == IntPtr.Zero || !StripNative.GetWindowRect(taskbarWindow, out var taskbarRect))
+            if (!StripNative.GetWindowRect(taskbarWindow, out var taskbarRect))
             {
                 return null;
             }
 
-            var tray = StripNative.FindWindowEx(taskbarWindow, IntPtr.Zero, "TrayNotifyWnd", null);
-            if (tray == IntPtr.Zero || !StripNative.GetWindowRect(tray, out var trayRect))
+            var layout = _probe.Layouts.TryGetValue(taskbarWindow, out var scanned) ? scanned : new TaskbarLayout(null, null, null);
+
+            var taskbar = new PixelRect(taskbarRect.Left, taskbarRect.Top, taskbarRect.Right, taskbarRect.Bottom);
+            var trayLeft = layout.TrayLeft;
+            if (trayLeft is null && primary)
+            {
+                var tray = StripNative.FindWindowEx(taskbarWindow, IntPtr.Zero, "TrayNotifyWnd", null);
+                if (tray != IntPtr.Zero && StripNative.GetWindowRect(tray, out var trayRect))
+                {
+                    trayLeft = trayRect.Left;
+                }
+            }
+
+            if (trayLeft is not { } trayEdge)
             {
                 return null;
             }
 
             scale = StripNative.GetDpiForWindow(taskbarWindow) / 96.0;
-            var layout = _probe.Layout;
-            var taskbar = new PixelRect(taskbarRect.Left, taskbarRect.Top, taskbarRect.Right, taskbarRect.Bottom);
             PixelRect? buttons = layout.ButtonsRight is { } right ? new PixelRect(taskbar.Left, taskbar.Top, right, taskbar.Bottom) : null;
             var padding = (int)Math.Round(12 * scale);
-            var desiredWidth = Math.Min(_renderer!.MeasureTextWidth(snapshot.Content.Text, scale) + (2 * padding), (int)(420 * scale));
+            var desiredWidth = Math.Min(_measurer!.MeasureTextWidth(snapshot.Content.Text, scale) + (2 * padding), (int)(420 * scale));
             var height = Math.Min((int)Math.Round(36 * scale), taskbar.Height - (int)Math.Round(8 * scale));
             return StripPlacement.Compute(
                 taskbar,
-                new PixelRect(trayRect.Left, trayRect.Top, trayRect.Right, trayRect.Bottom),
+                new PixelRect(trayEdge, taskbar.Top, taskbar.Right, taskbar.Bottom),
                 layout.Widgets,
                 buttons,
                 desiredWidth,
@@ -314,67 +407,139 @@ namespace Notka.Desktop.Taskbar
                 (int)Math.Round(120 * scale));
         }
 
-        private void Present(PixelRect rect)
+        private Surface GetSurface(IntPtr taskbar)
+        {
+            if (_surfaces.TryGetValue(taskbar, out var existing))
+            {
+                return existing;
+            }
+
+            var window = StripNative.CreateWindow(
+                StripNative.WsExLayered | StripNative.WsExNoActivate | StripNative.WsExToolWindow | StripNative.WsExTopmost,
+                ClassName,
+                "Notka",
+                StripNative.WsPopup,
+                0,
+                0,
+                1,
+                1,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                Marshal.GetHINSTANCE(typeof(TaskbarStripHost).Module),
+                IntPtr.Zero);
+            var surface = new Surface(taskbar, window, new StripRenderer());
+            _surfaces[taskbar] = surface;
+            _byWindow[window] = surface;
+            return surface;
+        }
+
+        private void Place(Surface surface, PixelRect rect, double scale, Snapshot snapshot, bool force)
+        {
+            var key = $"{snapshot.Content.Text}|{snapshot.LightTheme}|{surface.Hover}|{snapshot.Background}|{rect.Width}|{rect.Height}|{scale}";
+            if (force || key != surface.RenderedKey || !surface.Visible)
+            {
+                surface.Renderer.Render(snapshot.Content.Text, snapshot.LightTheme, surface.Hover, snapshot.Background, rect.Width, rect.Height, scale);
+                surface.RenderedKey = key;
+                Present(surface, rect);
+            }
+            else if (surface.Placed != rect)
+            {
+                StripNative.SetWindowPos(surface.Window, StripNative.HwndTopmost, rect.Left, rect.Top, 0, 0, StripNative.SwpNoSize | StripNative.SwpNoActivate);
+            }
+
+            surface.Placed = rect;
+            surface.Scale = scale;
+            KeepAboveTaskbar(surface);
+        }
+
+        private void Present(Surface surface, PixelRect rect)
         {
             var screen = StripNative.GetDC(IntPtr.Zero);
             var position = new StripNative.Point { X = rect.Left, Y = rect.Top };
             var size = new StripNative.Size { Width = rect.Width, Height = rect.Height };
             var source = new StripNative.Point();
             var blend = new StripNative.BlendFunction { BlendOp = 0, SourceConstantAlpha = 255, AlphaFormat = 1 };
-            StripNative.UpdateLayeredWindow(_window, screen, ref position, ref size, _renderer!.DcHandle, ref source, 0, ref blend, StripNative.UlwAlpha);
+            StripNative.UpdateLayeredWindow(surface.Window, screen, ref position, ref size, surface.Renderer.DcHandle, ref source, 0, ref blend, StripNative.UlwAlpha);
             StripNative.ReleaseDC(IntPtr.Zero, screen);
-            if (!_visible)
+            if (!surface.Visible)
             {
-                StripNative.ShowWindow(_window, StripNative.SwShowNoActivate);
-                _visible = true;
+                StripNative.ShowWindow(surface.Window, StripNative.SwShowNoActivate);
+                surface.Visible = true;
             }
         }
 
-        private void Hide()
+        private void Hide(Surface surface)
         {
-            if (_visible)
+            if (surface.Visible)
             {
-                StripNative.ShowWindow(_window, StripNative.SwHide);
-                _visible = false;
+                StripNative.ShowWindow(surface.Window, StripNative.SwHide);
+                surface.Visible = false;
             }
 
-            _placed = null;
-            SetBounds(null);
-            _renderedKey = null;
-            if (_hover)
+            surface.Placed = null;
+            surface.RenderedKey = null;
+            if (surface.Hover)
             {
-                _hover = false;
-                _trackingMouse = false;
+                surface.Hover = false;
+                surface.TrackingMouse = false;
                 HoverChanged?.Invoke(false);
             }
         }
 
-        private void SetBounds(PixelRect? bounds)
+        private void Destroy(Surface surface)
         {
+            Hide(surface);
+            _surfaces.Remove(surface.Taskbar);
+            _byWindow.Remove(surface.Window);
+            if (_lastHover == surface)
+            {
+                _lastHover = null;
+            }
+
+            StripNative.DestroyWindow(surface.Window);
+            surface.Renderer.Dispose();
+        }
+
+        private void DestroySurfaces()
+        {
+            foreach (var surface in _surfaces.Values.ToList())
+            {
+                Destroy(surface);
+            }
+
+            PublishBounds();
+        }
+
+        private void PublishBounds()
+        {
+            var shown = _lastHover is { Placed: not null } hovered
+                ? hovered
+                : _surfaces.Values.FirstOrDefault(s => s.Placed is not null);
             lock (_gate)
             {
-                _bounds = bounds;
+                _bounds = shown?.Placed;
+                _scale = shown?.Scale ?? 1.0;
             }
         }
 
-        private void KeepAboveTaskbar(IntPtr taskbarWindow)
+        private void KeepAboveTaskbar(Surface surface)
         {
-            for (var above = StripNative.GetWindow(taskbarWindow, StripNative.GwHwndPrev); above != IntPtr.Zero; above = StripNative.GetWindow(above, StripNative.GwHwndPrev))
+            for (var above = StripNative.GetWindow(surface.Taskbar, StripNative.GwHwndPrev); above != IntPtr.Zero; above = StripNative.GetWindow(above, StripNative.GwHwndPrev))
             {
-                if (above == _window)
+                if (above == surface.Window)
                 {
                     return;
                 }
             }
 
-            StripNative.SetWindowPos(_window, StripNative.HwndTopmost, 0, 0, 0, 0, StripNative.SwpNoMove | StripNative.SwpNoSize | StripNative.SwpNoActivate);
+            StripNative.SetWindowPos(surface.Window, StripNative.HwndTopmost, 0, 0, 0, 0, StripNative.SwpNoMove | StripNative.SwpNoSize | StripNative.SwpNoActivate);
         }
 
         private void Post(uint message)
         {
-            if (_window != IntPtr.Zero)
+            if (_hub != IntPtr.Zero)
             {
-                StripNative.PostMessage(_window, message, IntPtr.Zero, IntPtr.Zero);
+                StripNative.PostMessage(_hub, message, IntPtr.Zero, IntPtr.Zero);
             }
         }
     }

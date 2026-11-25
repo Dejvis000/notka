@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Notka.Desktop.Taskbar;
 
 namespace Notka.Desktop.Services
 {
@@ -12,6 +13,10 @@ namespace Notka.Desktop.Services
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Notka", "settings.json");
 
         public bool ShowStrip { get; set; } = true;
+
+        public string StripTarget { get; set; } = StripTargets.Primary;
+
+        public bool StripBackground { get; set; } = true;
 
         public bool Compact { get; set; }
 
@@ -35,6 +40,8 @@ namespace Notka.Desktop.Services
                 if (File.Exists(path) && JsonSerializer.Deserialize<Stored>(File.ReadAllText(path), Json) is { } stored)
                 {
                     settings.ShowStrip = stored.ShowStrip;
+                    settings.StripTarget = string.IsNullOrEmpty(stored.StripTarget) ? StripTargets.Primary : stored.StripTarget;
+                    settings.StripBackground = stored.StripBackground;
                     settings.Compact = stored.Compact;
                     settings.AlwaysOnTop = stored.AlwaysOnTop;
                     settings.CompactShowsTasks = stored.CompactShowsTasks;
@@ -57,7 +64,7 @@ namespace Notka.Desktop.Services
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_path))!);
                 var temporary = _path + ".tmp";
-                var stored = new Stored(ShowStrip, Compact, AlwaysOnTop, NormalWidth, NormalHeight, CompactWidth, CompactHeight, CompactShowsTasks);
+                var stored = new Stored(ShowStrip, Compact, AlwaysOnTop, NormalWidth, NormalHeight, CompactWidth, CompactHeight, CompactShowsTasks, StripTarget, StripBackground);
                 File.WriteAllText(temporary, JsonSerializer.Serialize(stored, Json));
                 File.Move(temporary, _path, overwrite: true);
             }
@@ -74,6 +81,8 @@ namespace Notka.Desktop.Services
             int NormalHeight = 0,
             int CompactWidth = 0,
             int CompactHeight = 0,
-            bool CompactShowsTasks = false);
+            bool CompactShowsTasks = false,
+            string StripTarget = StripTargets.Primary,
+            bool StripBackground = true);
     }
 }

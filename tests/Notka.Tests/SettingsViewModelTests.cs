@@ -20,6 +20,51 @@ namespace Notka.Tests
         private SettingsViewModel Create() => new(_autostart, _lifetime, AppSettings.Load(_settingsPath));
 
         [Fact]
+        public void The_strip_monitor_choice_lists_connected_monitors_and_is_remembered()
+        {
+            var monitors = new FakeMonitors([new("\\\\.\\DISPLAY1", "Monitor 1"), new("\\\\.\\DISPLAY2", "Monitor 2")]);
+            var settings = new SettingsViewModel(_autostart, _lifetime, AppSettings.Load(_settingsPath), monitors);
+            var announced = new List<string>();
+            settings.StripTargetChanged += announced.Add;
+
+            Assert.Equal([StripTargets.Primary, StripTargets.All, "\\\\.\\DISPLAY1", "\\\\.\\DISPLAY2"], settings.StripTargetOptions.Select(o => o.Id));
+            Assert.Equal(StripTargets.Primary, settings.StripTarget);
+
+            settings.StripTarget = "\\\\.\\DISPLAY2";
+            settings.StripTarget = null!;
+
+            Assert.Equal(["\\\\.\\DISPLAY2"], announced);
+            Assert.Equal("\\\\.\\DISPLAY2", Create().StripTarget);
+        }
+
+        [Fact]
+        public void The_strip_background_is_on_by_default_and_the_choice_is_saved_and_announced()
+        {
+            var settings = Create();
+            var announced = new List<bool>();
+            settings.StripBackgroundChanged += announced.Add;
+            Assert.True(settings.StripBackground);
+
+            settings.StripBackground = false;
+
+            Assert.Equal([false], announced);
+            Assert.False(Create().StripBackground);
+        }
+
+        [Fact]
+        public void A_remembered_monitor_that_is_no_longer_connected_stays_selectable_as_unavailable()
+        {
+            var settings = new SettingsViewModel(_autostart, _lifetime, AppSettings.Load(_settingsPath), new FakeMonitors([new("\\\\.\\DISPLAY2", "Monitor 2")]));
+            settings.StripTarget = "\\\\.\\DISPLAY2";
+
+            var reloaded = new SettingsViewModel(_autostart, _lifetime, AppSettings.Load(_settingsPath), new FakeMonitors([]));
+
+            var option = Assert.Single(reloaded.StripTargetOptions, o => o.Id == "\\\\.\\DISPLAY2");
+            Assert.Contains("Odłączony", option.Label);
+            Assert.Equal("\\\\.\\DISPLAY2", reloaded.StripTarget);
+        }
+
+        [Fact]
         public void The_strip_switch_is_saved_reloaded_and_announced()
         {
             var settings = Create();
@@ -117,6 +162,11 @@ namespace Notka.Tests
             Create().ExitCommand.Execute(null);
 
             Assert.Equal(1, _lifetime.ExitRequests);
+        }
+
+        private sealed class FakeMonitors(IReadOnlyList<StripTargetOption> monitors) : IMonitorLister
+        {
+            public IReadOnlyList<StripTargetOption> List() => monitors;
         }
 
         private sealed class FakeAutostart : IAutostart

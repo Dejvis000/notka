@@ -8,6 +8,8 @@ namespace Notka.Desktop.Taskbar
     internal sealed unsafe class StripRenderer : IDisposable
     {
         private const string FontFace = "Segoe UI Variable Text";
+        private const uint GrayscaleQuality = 4;
+        private const uint ClearTypeQuality = 5;
 
         private HDC _dc;
         private HBITMAP _bitmap;
@@ -15,6 +17,7 @@ namespace Notka.Desktop.Taskbar
         private IntPtr _font;
         private HGDIOBJ _previousFont;
         private double _fontScale;
+        private uint _quality = ClearTypeQuality;
         private uint* _pixels;
         private int _width;
         private int _height;
@@ -30,7 +33,7 @@ namespace Notka.Desktop.Taskbar
 
         public int MeasureTextWidth(string text, double scale)
         {
-            EnsureFont(scale);
+            EnsureFont(scale, _quality);
             var bounds = new RECT();
             fixed (char* chars = text)
             {
@@ -40,10 +43,16 @@ namespace Notka.Desktop.Taskbar
             return bounds.right - bounds.left;
         }
 
-        public void Render(string text, bool light, bool hover, int width, int height, double scale)
+        public void Render(string text, bool light, bool hover, bool withBackground, int width, int height, double scale)
         {
             EnsureBitmap(width, height);
-            EnsureFont(scale);
+            var plain = !withBackground && !hover;
+            EnsureFont(scale, plain ? GrayscaleQuality : ClearTypeQuality);
+            if (plain)
+            {
+                RenderPlain(text, light, width, height, scale);
+                return;
+            }
 
             var background = light
                 ? (hover ? 0xFFD6D6D6u : 0xFFE8E8E8u)
@@ -63,6 +72,32 @@ namespace Notka.Desktop.Taskbar
             }
 
             ApplyRoundedAlpha(width, height, (int)Math.Round(6 * scale));
+        }
+
+        // White text on black gives the coverage in every channel; alpha 1 keeps the window clickable.
+        private void RenderPlain(string text, bool light, int width, int height, double scale)
+        {
+            for (var i = 0; i < width * height; i++)
+            {
+                _pixels[i] = 0;
+            }
+
+            PInvoke.SetBkMode(_dc, BACKGROUND_MODE.TRANSPARENT);
+            PInvoke.SetTextColor(_dc, new COLORREF(0xFFFFFFu));
+            var padding = (int)Math.Round(12 * scale);
+            var bounds = new RECT { left = padding, top = 0, right = width - padding, bottom = height };
+            fixed (char* chars = text)
+            {
+                PInvoke.DrawText(_dc, chars, text.Length, ref bounds, DRAW_TEXT_FORMAT.DT_SINGLELINE | DRAW_TEXT_FORMAT.DT_VCENTER | DRAW_TEXT_FORMAT.DT_END_ELLIPSIS | DRAW_TEXT_FORMAT.DT_NOPREFIX);
+            }
+
+            var ink = light ? 0x1Au : 0xFFu;
+            for (var i = 0; i < width * height; i++)
+            {
+                var coverage = Math.Max((_pixels[i] >> 16) & 0xFF, Math.Max((_pixels[i] >> 8) & 0xFF, _pixels[i] & 0xFF));
+                var channel = ink * coverage / 255;
+                _pixels[i] = (Math.Max(coverage, 1u) << 24) | (channel << 16) | (channel << 8) | channel;
+            }
         }
 
         public void Dispose()
@@ -129,9 +164,9 @@ namespace Notka.Desktop.Taskbar
             _height = height;
         }
 
-        private void EnsureFont(double scale)
+        private void EnsureFont(double scale, uint quality)
         {
-            if (_font != IntPtr.Zero && _fontScale == scale)
+            if (_font != IntPtr.Zero && _fontScale == scale && _quality == quality)
             {
                 return;
             }
@@ -139,10 +174,10 @@ namespace Notka.Desktop.Taskbar
             ReleaseFont();
             const uint defaultCharset = 1;
             const uint defaultPrecision = 0;
-            const uint clearType = 5;
-            _font = StripNative.CreateFont(-(int)Math.Round(14 * scale), 0, 0, 0, 600, 0, 0, 0, defaultCharset, defaultPrecision, defaultPrecision, clearType, 0, FontFace);
+            _font = StripNative.CreateFont(-(int)Math.Round(14 * scale), 0, 0, 0, 600, 0, 0, 0, defaultCharset, defaultPrecision, defaultPrecision, quality, 0, FontFace);
             _previousFont = PInvoke.SelectObject(_dc, new HGDIOBJ(_font));
             _fontScale = scale;
+            _quality = quality;
         }
 
         private void ReleaseFont()

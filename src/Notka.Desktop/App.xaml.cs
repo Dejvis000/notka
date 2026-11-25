@@ -117,6 +117,7 @@ namespace Notka.Desktop
             services.AddSingleton(autostart);
             services.AddSingleton(lifetime);
             services.AddSingleton(AppSettings.Load(AppSettings.DefaultPath()));
+            services.AddSingleton<IMonitorLister, MonitorLister>();
             services.AddSingleton<SettingsViewModel>();
             services.AddSingleton<WindowModeViewModel>();
             services.AddHttpClient<INotkaApiClient, NotkaApiClient>(client =>

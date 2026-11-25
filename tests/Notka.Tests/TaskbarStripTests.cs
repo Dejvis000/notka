@@ -74,6 +74,54 @@ namespace Notka.Tests
         }
 
         [Fact]
+        public void A_taskbar_at_the_top_edge_gets_a_strip_centered_inside_it()
+        {
+            var top = new PixelRect(0, 0, 2278, 48);
+            var topTray = new PixelRect(2000, 0, 2278, 48);
+            var topButtons = new PixelRect(0, 0, 400, 48);
+
+            var rect = StripPlacement.Compute(top, topTray, null, topButtons, 240, 36, 8, 120);
+
+            Assert.Equal(new PixelRect(1752, 6, 1992, 42), rect);
+        }
+
+        [Fact]
+        public void A_secondary_taskbar_with_only_the_start_button_still_gets_a_strip()
+        {
+            var secondary = new PixelRect(3440, 1392, 6000, 1440);
+            var clock = new PixelRect(5922, 1392, 6000, 1440);
+            var start = new PixelRect(3440, 1392, 3495, 1440);
+
+            var rect = StripPlacement.Compute(secondary, clock, null, start, 240, 36, 8, 120);
+
+            Assert.Equal(new PixelRect(5674, 1398, 5914, 1434), rect);
+        }
+
+        [Fact]
+        public void The_card_opens_above_a_bottom_taskbar_and_below_a_top_taskbar()
+        {
+            var work = new PixelRect(0, 0, 3440, 1392);
+            var bottomStrip = new PixelRect(3000, 1398, 3240, 1434);
+            Assert.Equal((2920, 1398 - 120 - 8), CardPlacement.Compute(bottomStrip, work, 320, 120, 8));
+
+            var workBelowTop = new PixelRect(0, 48, 3440, 1440);
+            var topStrip = new PixelRect(3000, 6, 3240, 42);
+            Assert.Equal((2920, 42 + 8), CardPlacement.Compute(topStrip, workBelowTop, 320, 120, 8));
+        }
+
+        [Fact]
+        public void The_card_stays_inside_the_monitor_it_belongs_to()
+        {
+            var secondWork = new PixelRect(3440, 0, 6000, 1392);
+            var strip = new PixelRect(3450, 1398, 3690, 1434);
+
+            var (x, y) = CardPlacement.Compute(strip, secondWork, 320, 120, 8);
+
+            Assert.Equal(3440, x);
+            Assert.True(y >= 0);
+        }
+
+        [Fact]
         public void The_strip_avoids_the_widgets_button()
         {
             var rect = StripPlacement.Compute(Taskbar, Tray, Widgets, Buttons, 240, 36, 8, 120);
