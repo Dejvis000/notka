@@ -34,7 +34,7 @@ namespace Notka.Desktop.Taskbar
             var left = buttons.Right + gap;
             var width = Math.Min(desiredWidth, right - left);
             var stripHeight = Math.Min(height, taskbar.Height);
-            if (width < minWidth || stripHeight <= 0)
+            if (width < Math.Min(minWidth, desiredWidth) || stripHeight <= 0)
             {
                 return null;
             }

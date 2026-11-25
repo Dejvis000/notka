@@ -74,6 +74,22 @@ namespace Notka.Tests
         }
 
         [Fact]
+        public void A_short_text_below_the_minimum_width_is_still_shown_when_there_is_room()
+        {
+            var rect = StripPlacement.Compute(Taskbar, Tray, null, Buttons, 94, 36, 8, 120);
+
+            Assert.Equal(new PixelRect(1898, 1210, 1992, 1246), rect);
+        }
+
+        [Fact]
+        public void A_strip_squeezed_below_the_minimum_width_is_hidden()
+        {
+            var crowded = Buttons with { Right = 1880 };
+
+            Assert.Null(StripPlacement.Compute(Taskbar, Tray, null, crowded, 240, 36, 8, 120));
+        }
+
+        [Fact]
         public void A_taskbar_at_the_top_edge_gets_a_strip_centered_inside_it()
         {
             var top = new PixelRect(0, 0, 2278, 48);
