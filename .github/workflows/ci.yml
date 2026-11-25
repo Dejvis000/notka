@@ -48,4 +48,10 @@ jobs:
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" Notka-Desktop-win-x64.zip Notka-Mcp-win-x64.zip --generate-notes
+        run: |
+          $notes = "release-notes/${{ github.ref_name }}.md"
+          if (Test-Path $notes) {
+            gh release create "${{ github.ref_name }}" Notka-Desktop-win-x64.zip Notka-Mcp-win-x64.zip --title "${{ github.ref_name }}" --notes-file $notes
+          } else {
+            gh release create "${{ github.ref_name }}" Notka-Desktop-win-x64.zip Notka-Mcp-win-x64.zip --generate-notes
+          }

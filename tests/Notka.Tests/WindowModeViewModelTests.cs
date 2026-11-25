@@ -9,8 +9,10 @@ namespace Notka.Tests
 
         public void Dispose()
         {
-            File.Delete(_path);
-            File.Delete(_path + ".tmp");
+            foreach (var file in new[] { _path, _path + ".tmp" }.Where(File.Exists))
+            {
+                File.Delete(file);
+            }
         }
 
         private WindowModeViewModel Create() => new(AppSettings.Load(_path));

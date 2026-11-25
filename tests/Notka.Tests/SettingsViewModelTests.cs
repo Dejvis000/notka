@@ -13,8 +13,10 @@ namespace Notka.Tests
 
         public void Dispose()
         {
-            File.Delete(_settingsPath);
-            File.Delete(_settingsPath + ".tmp");
+            foreach (var file in new[] { _settingsPath, _settingsPath + ".tmp" }.Where(File.Exists))
+            {
+                File.Delete(file);
+            }
         }
 
         private SettingsViewModel Create() => new(_autostart, _lifetime, AppSettings.Load(_settingsPath));
