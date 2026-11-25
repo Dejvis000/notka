@@ -263,6 +263,7 @@ namespace Notka.Desktop
 
             _window.AppWindow.Show();
             _window.Activate();
+            ForegroundWindow.Bring(WinRT.Interop.WindowNative.GetWindowHandle(_window));
         }
 
         public Task<bool> TryExitAsync() => ExitAsync();
