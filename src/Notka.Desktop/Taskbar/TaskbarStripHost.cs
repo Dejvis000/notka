@@ -368,6 +368,7 @@ namespace Notka.Desktop.Taskbar
                             }
                             else
                             {
+                                Log.Information("Strip hidden: measure failed (slidOut {SlidOut})", anySlidOut);
                                 Hide(unplaced);
                             }
                         }
@@ -489,12 +490,14 @@ namespace Notka.Desktop.Taskbar
             {
                 surface.Renderer.Render(snapshot.Content.Text, snapshot.LightTheme, surface.Hover, snapshot.Background, rect.Width, rect.Height, scale);
                 surface.RenderedKey = key;
+                Log.Information("Strip render at {Rect} (force {Force}, visible {Visible}, hover {Hover})", rect, force, surface.Visible, surface.Hover);
                 Present(surface, rect);
                 surface.Placed = rect;
                 surface.PendingMove = null;
             }
-            else if (surface.Placed != rect && MoveSettled(surface, rect))
+            else if (surface.Placed is { } placed && placed != rect && Math.Abs(rect.Left - placed.Left) >= (int)Math.Round(24 * scale) && MoveSettled(surface, rect))
             {
+                Log.Information("Strip move {From} -> {To}", surface.Placed, rect);
                 StripNative.SetWindowPos(surface.Window, StripNative.HwndTopmost, rect.Left, rect.Top, 0, 0, StripNative.SwpNoSize | StripNative.SwpNoActivate);
                 surface.Placed = rect;
                 surface.PendingMove = null;

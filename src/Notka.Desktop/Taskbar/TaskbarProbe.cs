@@ -92,7 +92,13 @@ namespace Notka.Desktop.Taskbar
                 var automation = (IUIAutomation)new CUIAutomation();
                 do
                 {
-                    _layouts = Scan(automation);
+                    var scanned = Scan(automation);
+                    if (!scanned.OrderBy(p => p.Key).SequenceEqual(_layouts.OrderBy(p => p.Key)))
+                    {
+                        Log.Information("Taskbar layout {Layouts}", scanned.Select(p => $"{p.Key}: {p.Value}"));
+                    }
+
+                    _layouts = scanned;
                 }
                 while (WaitHandle.WaitAny([_stop, _poke], NextWait()) != 0);
             }
