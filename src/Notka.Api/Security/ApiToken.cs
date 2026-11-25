@@ -10,7 +10,7 @@ namespace Notka.Api.Security
     {
         public const int MinLength = 32;
 
-        private const int MoveAttempts = 5;
+        private const int MoveAttempts = 20;
 
         public static string DefaultPath() =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Notka", "api-token");
