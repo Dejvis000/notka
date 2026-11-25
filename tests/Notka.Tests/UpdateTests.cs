@@ -88,6 +88,46 @@ namespace Notka.Tests
         }
 
         [Fact]
+        public void A_folder_is_layered_only_when_it_is_named_app_and_the_launcher_sits_beside_it()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "notka-tests", $"layout-{Guid.NewGuid():N}");
+            var app = Path.Combine(root, "app");
+            Directory.CreateDirectory(app);
+            try
+            {
+                Assert.False(PackageLayout.IsLayered(app));
+                Assert.Equal(app, PackageLayout.Root(app));
+
+                File.WriteAllText(Path.Combine(root, "Notka.exe"), string.Empty);
+                Assert.True(PackageLayout.IsLayered(app));
+                Assert.Equal(root, PackageLayout.Root(app));
+                Assert.False(PackageLayout.IsLayered(root));
+            }
+            finally
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+
+        [Fact]
+        public void A_drive_root_is_recognised_with_or_without_a_trailing_separator()
+        {
+            Assert.True(PackageLayout.IsDriveRoot(@"D:\"));
+            Assert.True(PackageLayout.IsDriveRoot("D:"));
+            Assert.False(PackageLayout.IsDriveRoot(@"D:\Notka"));
+            Assert.False(PackageLayout.IsDriveRoot(@"D:\Notka\app"));
+        }
+
+        [Fact]
+        public void The_required_package_files_follow_the_install_layout()
+        {
+            Assert.Equal(["Notka.Desktop.exe", "Notka.Mcp.exe"], PackageLayout.RequiredFiles(layered: false));
+            Assert.Equal(
+                ["Notka.exe", Path.Combine("app", "Notka.Desktop.exe"), Path.Combine("app", "Notka.Mcp.exe")],
+                PackageLayout.RequiredFiles(layered: true));
+        }
+
+        [Fact]
         public void An_update_result_file_is_parsed_and_garbage_is_ignored()
         {
             var ok = UpdateResult.TryParse("""{"ok":true,"version":"0.2.0","message":""}""");

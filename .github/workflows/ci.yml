@@ -48,14 +48,18 @@ jobs:
       - name: Publish
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
-          dotnet publish src/Notka.Mcp -c Release -r win-x64 --self-contained -p:Version=$version -o artifacts/desktop
+          $env:PATH += ";${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
+          dotnet publish src/Notka.Mcp -c Release -r win-x64 --self-contained -p:Version=$version -o artifacts/package/app
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet publish src/Notka.Desktop -c Release -r win-x64 -p:Platform=x64 --self-contained -p:Version=$version -o artifacts/desktop
+          dotnet publish src/Notka.Desktop -c Release -r win-x64 -p:Platform=x64 --self-contained -p:Version=$version -o artifacts/package/app
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($exe in "Notka.Desktop.exe", "Notka.Mcp.exe") {
-            if (-not (Test-Path "artifacts/desktop/$exe")) { throw "$exe is missing from the package" }
+          dotnet publish src/Notka.Launcher -c Release -r win-x64 -p:Version=$version -o artifacts/package
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Remove-Item artifacts/package/Notka.pdb -ErrorAction SilentlyContinue
+          foreach ($exe in "Notka.exe", "app/Notka.Desktop.exe", "app/Notka.Mcp.exe") {
+            if (-not (Test-Path "artifacts/package/$exe")) { throw "$exe is missing from the package" }
           }
-          Compress-Archive -Path artifacts/desktop/* -DestinationPath Notka-win-x64.zip
+          Compress-Archive -Path artifacts/package/* -DestinationPath Notka-win-x64.zip
           $hash = (Get-FileHash Notka-win-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
           [IO.File]::WriteAllText("Notka-win-x64.zip.sha256", "$hash  Notka-win-x64.zip`n")
 

@@ -14,8 +14,6 @@ namespace Notka.Desktop.Taskbar
         private const uint WmMouseLeave = 0x02A3;
         private const uint WmDestroy = 0x0002;
         private const uint TickMilliseconds = 250;
-        private const uint ZOrderMilliseconds = 20;
-
         private static readonly StripNative.WindowProcedure Procedure = WindowProc;
         private static readonly StripNative.WinEventProcedure EventProcedure = OnWinEvent;
         private static TaskbarStripHost? s_instance;
@@ -140,13 +138,6 @@ namespace Notka.Desktop.Taskbar
                     {
                         switch (message)
                         {
-                            case WmTimer when wParam == 2:
-                                foreach (var surface in host._surfaces.Values.Where(s => s.Visible))
-                                {
-                                    host.KeepAboveTaskbar(surface);
-                                }
-
-                                return IntPtr.Zero;
                             case WmTimer:
                                 host.Apply(force: false);
                                 return IntPtr.Zero;
@@ -160,7 +151,6 @@ namespace Notka.Desktop.Taskbar
                                 return IntPtr.Zero;
                             case WmDestroy:
                                 StripNative.KillTimer(window, 1);
-                                StripNative.KillTimer(window, 2);
                                 StripNative.PostQuitMessage(0);
                                 return IntPtr.Zero;
                         }
@@ -542,19 +532,6 @@ namespace Notka.Desktop.Taskbar
             {
                 StripNative.ShowWindow(surface.Window, StripNative.SwShowNoActivate);
                 surface.Visible = true;
-                UpdateZOrderTimer();
-            }
-        }
-
-        private void UpdateZOrderTimer()
-        {
-            if (_surfaces.Values.Any(s => s.Visible))
-            {
-                StripNative.SetTimer(_hub, 2, ZOrderMilliseconds, IntPtr.Zero);
-            }
-            else
-            {
-                StripNative.KillTimer(_hub, 2);
             }
         }
 
@@ -565,7 +542,6 @@ namespace Notka.Desktop.Taskbar
                 Log.Information("Strip hidden (fullscreen busy {Busy})", IsFullScreenBusy());
                 StripNative.ShowWindow(surface.Window, StripNative.SwHide);
                 surface.Visible = false;
-                UpdateZOrderTimer();
             }
 
             surface.Placed = null;

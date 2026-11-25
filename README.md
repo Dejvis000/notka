@@ -21,13 +21,13 @@ Private tasks and sticky notes for Windows 11, with a live summary next to the t
 ## Install
 
 1. Download `Notka-win-x64.zip` from [Releases](https://github.com/Dejvis000/notka/releases) and extract it to a folder you can write to (not `C:\Program Files`).
-2. Run `Notka.Desktop.exe`. Windows 11 x64 is required, .NET is not.
+2. Run `Notka.exe`; the program files live in the `app` folder. Windows 11 x64 is required, .NET is not.
 
 The app is not code-signed, so SmartScreen may warn on first launch. Closing the window hides Notka to the tray; use Exit in the tray menu or in Settings to quit.
 
 ## AI agents
 
-In Settings, "Copy prompt" copies instructions you paste into an agent's chat; the agent registers the `notka` server itself. To do it by hand, add this to the agent's MCP configuration (the file is `Notka.Mcp.exe` in the app folder):
+In Settings, "Copy prompt" copies instructions you paste into an agent's chat; the agent registers the `notka` server itself. To do it by hand, add this to the agent's MCP configuration (the file is `app\Notka.Mcp.exe`):
 
 ```json
 {
@@ -41,7 +41,7 @@ Tools: `add_task`, `list_tasks`, `search_tasks`, `complete_task`, `update_task`,
 
 ## Updates
 
-Notka checks GitHub Releases once a day and from Settings (anonymous request to `api.github.com`; the daily check can be turned off). Installing downloads the package, verifies its SHA-256 from the same release, replaces the files and restarts. A failed copy is rolled back; details are in `%LOCALAPPDATA%\Notka\update\update.log`. Running MCP servers from the app folder are stopped during the update, so restart your agent afterwards.
+Notka checks GitHub Releases once a day and from Settings (anonymous request to `api.github.com`; the daily check can be turned off). Installing downloads the package, verifies its SHA-256 from the same release, replaces the files and restarts. A failed copy is rolled back; details are in `%LOCALAPPDATA%\Notka\update\update.log`. Running MCP servers from the install folder are stopped during the update, so restart your agent afterwards.
 
 ## Build from source
 

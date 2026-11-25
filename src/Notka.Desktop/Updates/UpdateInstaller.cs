@@ -28,8 +28,8 @@ namespace Notka.Desktop.Updates
                     return "Wersja deweloperska nie aktualizuje się sama.";
                 }
 
-                var app = AppDirectory();
-                if (string.Equals(Path.GetPathRoot(app), AppContext.BaseDirectory, StringComparison.OrdinalIgnoreCase))
+                var app = PackageRoot();
+                if (PackageLayout.IsDriveRoot(app))
                 {
                     return "Notka leży w katalogu głównym dysku. Przenieś ją do własnego folderu, aby aktualizować automatycznie.";
                 }
@@ -84,7 +84,7 @@ namespace Notka.Desktop.Updates
                 throw new UpdateException("Nie udało się rozpakować paczki aktualizacji.", ex);
             }
 
-            foreach (var exe in new[] { "Notka.Desktop.exe", "Notka.Mcp.exe" })
+            foreach (var exe in PackageLayout.RequiredFiles(PackageLayout.IsLayered(AppDirectory())))
             {
                 if (!File.Exists(Path.Combine(staging, exe)))
                 {
@@ -120,7 +120,7 @@ namespace Notka.Desktop.Updates
                 "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(WorkDirectory, "apply.ps1"),
                 "-ProcessId", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 "-Source", Path.Combine(WorkDirectory, "staging"),
-                "-Target", AppDirectory(),
+                "-Target", PackageRoot(),
                 "-Exe", exe,
                 "-Version", AppVersion.Format(release.Version),
                 "-Work", WorkDirectory,
@@ -141,6 +141,8 @@ namespace Notka.Desktop.Updates
         }
 
         private static string AppDirectory() => AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+
+        private static string PackageRoot() => PackageLayout.Root(AppDirectory());
 
         private static bool IsInside(string child, string parent)
         {
