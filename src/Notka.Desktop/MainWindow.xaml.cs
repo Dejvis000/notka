@@ -175,16 +175,56 @@ namespace Notka.Desktop
             }
         }
 
-        private void DuePicker_DateChanged(CalendarDatePicker sender, CalendarDatePickerDateChangedEventArgs args) =>
-            ViewModel.Tasks.NewDueDate = args.NewDate?.DateTime;
+        private bool _syncingDue;
 
-        private void DueTime_SelectedTimeChanged(TimePicker sender, TimePickerSelectedValueChangedEventArgs args) =>
-            ViewModel.Tasks.NewDueTime = args.NewTime;
+        private void DueCalendar_SelectedDatesChanged(CalendarView sender, CalendarViewSelectedDatesChangedEventArgs args)
+        {
+            if (!_syncingDue)
+            {
+                ViewModel.Tasks.NewDueDate = sender.SelectedDates.Count > 0 ? sender.SelectedDates[0].DateTime.Date : null;
+                UpdateDueText();
+            }
+        }
+
+        private void DueTimeBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!_syncingDue)
+            {
+                ViewModel.Tasks.NewDueTime = TimeSpan.TryParseExact(DueTimeBox.Text.Trim(), ["h\\:mm", "hh\\:mm"],
+                    System.Globalization.CultureInfo.InvariantCulture, out var time) && time < TimeSpan.FromDays(1) ? time : null;
+                UpdateDueText();
+            }
+        }
 
         private void ClearDue_Click(object sender, RoutedEventArgs e)
         {
-            DuePicker.Date = null;
-            DueTimePicker.SelectedTime = null;
+            ViewModel.Tasks.NewDueDate = null;
+            ViewModel.Tasks.NewDueTime = null;
+            ResetDueControls();
+        }
+
+        private void ResetDueControls()
+        {
+            _syncingDue = true;
+            DueCalendar.SelectedDates.Clear();
+            DueTimeBox.Text = string.Empty;
+            _syncingDue = false;
+            UpdateDueText();
+        }
+
+        private void UpdateDueText()
+        {
+            var date = ViewModel.Tasks.NewDueDate;
+            var time = ViewModel.Tasks.NewDueTime;
+            if (date is null && time is null)
+            {
+                DueLabel.Text = "Termin";
+                return;
+            }
+
+            var day = (date ?? DateTime.Today).Date;
+            var dayText = day == DateTime.Today ? "dziś" : day == DateTime.Today.AddDays(1) ? "jutro" : day.ToString("d MMM");
+            DueLabel.Text = time is { } t ? $"{dayText} {t:hh\\:mm}" : dayText;
         }
 
         private async void AddTask_Click(object sender, RoutedEventArgs e) => await AddTaskAsync();
@@ -218,14 +258,9 @@ namespace Notka.Desktop
         private async Task AddTaskAsync()
         {
             await ViewModel.Tasks.AddAsync();
-            if (!ViewModel.Tasks.NewDueDate.HasValue)
+            if (!ViewModel.Tasks.NewDueDate.HasValue && !ViewModel.Tasks.NewDueTime.HasValue)
             {
-                DuePicker.Date = null;
-            }
-
-            if (!ViewModel.Tasks.NewDueTime.HasValue)
-            {
-                DueTimePicker.SelectedTime = null;
+                ResetDueControls();
             }
         }
     }
