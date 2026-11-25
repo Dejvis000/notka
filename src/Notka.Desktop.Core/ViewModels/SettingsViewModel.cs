@@ -17,15 +17,18 @@ namespace Notka.Desktop.ViewModels
         private readonly IAppLifetime _lifetime;
         private readonly AppSettings _settings;
         private readonly IMonitorLister? _monitors;
+        private readonly IAgentConnector? _agents;
         private string _stripTarget;
         private bool _applying;
 
-        public SettingsViewModel(IAutostart autostart, IAppLifetime lifetime, AppSettings settings, IMonitorLister? monitors = null)
+        public SettingsViewModel(IAutostart autostart, IAppLifetime lifetime, AppSettings settings, IMonitorLister? monitors = null, IAgentConnector? agents = null)
         {
             _autostart = autostart;
             _lifetime = lifetime;
             _settings = settings;
             _monitors = monitors;
+            _agents = agents;
+            _allowAgents = settings.AllowAgents;
             _startWithWindows = autostart.IsEnabled;
             _showStrip = settings.ShowStrip;
             _stripTarget = settings.StripTarget;
@@ -39,6 +42,48 @@ namespace Notka.Desktop.ViewModels
         public event Action<string>? StripTargetChanged;
 
         public event Action<bool>? StripBackgroundChanged;
+
+        public event Action<bool>? AllowAgentsChanged;
+
+        public string AgentServerPath => _agents?.ServerPath ?? string.Empty;
+
+        [ObservableProperty]
+        private bool _allowAgents;
+
+        [ObservableProperty]
+        private string? _agentMessage;
+
+        [RelayCommand]
+        private void CopyAgentPrompt()
+        {
+            if (_agents is null)
+            {
+                return;
+            }
+
+            if (!_agents.ServerExists)
+            {
+                AgentMessage = "Nie znaleziono Notka.Mcp.exe obok aplikacji.";
+                return;
+            }
+
+            try
+            {
+                _agents.Copy(AgentPrompt.Build(_agents.ServerPath));
+                AgentMessage = "Skopiowano. Wklej prompt do czatu agenta.";
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.Runtime.InteropServices.COMException or UnauthorizedAccessException)
+            {
+                AgentMessage = "Nie udało się skopiować do schowka. Spróbuj ponownie.";
+            }
+        }
+
+        partial void OnAllowAgentsChanged(bool value)
+        {
+            _settings.AllowAgents = value;
+            _settings.Save();
+            AllowAgentsChanged?.Invoke(value);
+        }
 
         [ObservableProperty]
         private bool _stripBackground;

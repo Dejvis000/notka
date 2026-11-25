@@ -21,6 +21,7 @@ namespace Notka.Api.Extensions
 
             services.TryAddSingleton(TimeProvider.System);
             services.AddSingleton(new ApiTokenHolder(ApiToken.GetOrCreate(configuration)));
+            services.AddSingleton<AgentAccess>();
             services.AddDbContext<NotkaDbContext>(o => o.UseSqlite(connectionString));
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddApplicationServices(typeof(NotkaApiExtensions).Assembly);
@@ -39,6 +40,7 @@ namespace Notka.Api.Extensions
             app.UseStatusCodePages();
             app.UseMiddleware<LocalRequestsOnlyMiddleware>();
             app.UseMiddleware<ApiTokenMiddleware>();
+            app.UseMiddleware<AgentAccessMiddleware>();
             TaskEndpoints.Map(app);
             NoteEndpoints.Map(app);
             app.MapHub<ChangesHub>(ChangesHub.Path);

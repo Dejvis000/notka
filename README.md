@@ -36,13 +36,12 @@ musi być literalnym adresem IP z pętli zwrotnej, np. `http://127.0.0.1:5123`.
 
 ## Gotowe paczki
 
-Push do `main` i każdy pull request buduje GitHub Actions (build + testy). Tag `vX.Y.Z` tworzy release (treść z angielskiego `release-notes/vX.Y.Z.md`, a bez niego z automatycznych notatek) z dwoma plikami zip, bez potrzeby
-instalowania .NET: `Notka-Desktop-win-x64.zip` (rozpakuj i uruchom `Notka.Desktop.exe`) oraz `Notka-Mcp-win-x64.zip`
-(ścieżka do `Notka.Mcp.exe` trafia do konfiguracji Claude Desktop). Lokalnie to samo:
+Push do `main` i każdy pull request buduje GitHub Actions (build + testy). Tag `vX.Y.Z` tworzy release (treść z angielskiego `release-notes/vX.Y.Z.md`, a bez niego z automatycznych notatek) z jednym plikiem zip, bez potrzeby
+instalowania .NET: `Notka-win-x64.zip` (rozpakuj i uruchom `Notka.Desktop.exe`; obok leży `Notka.Mcp.exe`, serwer MCP dla agentów AI). Lokalnie to samo:
 
 ```
+dotnet publish src/Notka.Mcp -c Release -r win-x64 --self-contained -o artifacts/desktop
 dotnet publish src/Notka.Desktop -c Release -r win-x64 -p:Platform=x64 --self-contained -o artifacts/desktop
-dotnet publish src/Notka.Mcp -c Release -r win-x64 --self-contained -o artifacts/mcp
 ```
 
 ## Aplikacja desktopowa
@@ -65,23 +64,27 @@ konkretny; każdy pasek zadań dostaje własny pasek) i czy pasek ma tło, czy j
 aplikacji na pasku zadań, chowa się razem z automatycznie ukrywanym paskiem zadań (nic nie zostaje na ekranie, np. OLED) i działa przy górnej krawędzi; pionowy pasek zadań jest nieobsługiwany (informacja zostaje w podpowiedzi ikony w trayu).
 Tylko jedna instancja: ponowne uruchomienie pokazuje okno działającej aplikacji. Logi: `%LOCALAPPDATA%\Notka\logs`.
 
-## Serwer MCP dla Claude Desktop
+## Agenci AI (serwer MCP)
 
-```
-dotnet publish src/Notka.Mcp -c Release -o artifacts/mcp
-```
-
-W `%APPDATA%\Claude\claude_desktop_config.json`:
+W ustawieniach Notki przełącznik „Zezwalaj agentom AI na sterowanie Notką” (domyślnie włączony) wyłącza dołączony serwer
+MCP: po wyłączeniu jego narzędzia zwracają komunikat o wyłączonym dostępie. To nie jest granica bezpieczeństwa wobec innego
+procesu uruchomionego na Twoim koncie (ten może odczytać token z `%LOCALAPPDATA%\Notka\api-token`). Serwer MCP ze starszego,
+osobnego pliku zip nie zna tego przełącznika, więc po aktualizacji zastąp go wersją z folderu aplikacji. Przycisk „Kopiuj prompt”
+kopiuje polecenie dla agenta (Claude Desktop, Claude Code, Cursor i inne): ma dodać do swojej konfiguracji serwer stdio
+„notka” uruchamiający `Notka.Mcp.exe` z folderu aplikacji. Notka nie zmienia niczyich plików konfiguracyjnych; gdy agent nie
+potrafi sam skonfigurować serwera, pokaże, gdzie go wpisać. Odpowiada to wpisowi:
 
 ```json
 {
   "mcpServers": {
     "notka": {
-      "command": "C:\\sciezka\\do\\artifacts\\mcp\\Notka.Mcp.exe"
+      "command": "C:\\sciezka\\do\\Notka.Mcp.exe"
     }
   }
 }
 ```
+
+Z kodu źródłowego serwer budujesz poleceniem `dotnet publish src/Notka.Mcp -c Release -o artifacts/mcp`.
 
 Adres API to domyślnie `http://127.0.0.1:5123`; zmienia go zmienna środowiskowa `Notka__ApiUrl`.
 Narzędzia: `add_task`, `list_tasks`, `search_tasks`, `complete_task`, `update_task`, `create_note`, `list_notes`.
@@ -93,7 +96,7 @@ Gdy aplikacja Notka nie działa, narzędzia zwracają czytelny komunikat.
 - `src/Notka.Api` - biblioteka API: EF Core, endpointy, SignalR
 - `src/Notka.Desktop` - aplikacja WinUI 3
 - `src/Notka.Desktop.Core` - klient API, klient SignalR i ViewModele aplikacji desktopowej
-- `src/Notka.Mcp` - serwer MCP dla Claude Desktop
+- `src/Notka.Mcp` - serwer MCP (stdio) dla agentów AI
 - `tests/Notka.Tests` - testy xUnit
 
 ## Licencja

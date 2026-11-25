@@ -11,6 +11,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Notka.Api.Extensions;
 using Notka.Api.Hubs;
+using Notka.Api.Security;
 using Notka.Core;
 
 namespace Notka.Tests
@@ -169,6 +170,33 @@ namespace Notka.Tests
             Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
             Assert.Contains("Bearer", response.Headers.WwwAuthenticate.ToString());
             Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        }
+
+        [Fact]
+        public async Task Turning_agent_access_off_rejects_only_the_mcp_client()
+        {
+            var access = _app.Services.GetRequiredService<AgentAccess>();
+            async Task<HttpResponseMessage> List(bool asAgent)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, "/api/tasks");
+                if (asAgent)
+                {
+                    request.Headers.Add(AgentClient.Header, AgentClient.McpValue);
+                }
+
+                return await _http.SendAsync(request, Ct);
+            }
+
+            Assert.Equal(HttpStatusCode.OK, (await List(asAgent: true)).StatusCode);
+
+            access.Allowed = false;
+            var rejected = await List(asAgent: true);
+            Assert.Equal(HttpStatusCode.Forbidden, rejected.StatusCode);
+            Assert.Contains("wyłączony", await rejected.Content.ReadAsStringAsync(Ct));
+            Assert.Equal(HttpStatusCode.OK, (await List(asAgent: false)).StatusCode);
+
+            access.Allowed = true;
+            Assert.Equal(HttpStatusCode.OK, (await List(asAgent: true)).StatusCode);
         }
 
         [Fact]

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Notka.Core;
 using Notka.Mcp;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -18,6 +19,7 @@ builder.Services.AddHttpClient<NotkaApiClient>(client =>
 {
     client.BaseAddress = apiUrl;
     client.Timeout = TimeSpan.FromSeconds(15);
+    client.DefaultRequestHeaders.Add(AgentClient.Header, AgentClient.McpValue);
 }).AddHttpMessageHandler<TokenHandler>().RedactLoggedHeaders(["Authorization"]);
 
 builder.Services

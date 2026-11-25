@@ -45,7 +45,7 @@ namespace Notka.Desktop
 
             try
             {
-                await _api.StartAsync();
+                await _api.StartAsync(AppSettings.Load(AppSettings.DefaultPath()).AllowAgents);
             }
             catch (Exception ex)
             {
@@ -75,6 +75,9 @@ namespace Notka.Desktop
             var exePath = Environment.ProcessPath ?? throw new InvalidOperationException("Process path is unavailable.");
             var ui = BuildUiServices(_api.Url, _api.Token, new AutostartService(exePath), this);
             _ui = ui;
+            var settings = ui.GetRequiredService<SettingsViewModel>();
+            _api.SetAgentAccess(settings.AllowAgents);
+            settings.AllowAgentsChanged += _api.SetAgentAccess;
             _viewModel = ui.GetRequiredService<MainViewModel>();
             _window = new MainWindow(_viewModel, ui.GetRequiredService<SettingsViewModel>(), ui.GetRequiredService<WindowModeViewModel>());
             _window.Closed += async (_, _) => await ShutdownAsync();
@@ -118,6 +121,7 @@ namespace Notka.Desktop
             services.AddSingleton(lifetime);
             services.AddSingleton(AppSettings.Load(AppSettings.DefaultPath()));
             services.AddSingleton<IMonitorLister, MonitorLister>();
+            services.AddSingleton<IAgentConnector, AgentConnector>();
             services.AddSingleton<SettingsViewModel>();
             services.AddSingleton<WindowModeViewModel>();
             services.AddHttpClient<INotkaApiClient, NotkaApiClient>(client =>

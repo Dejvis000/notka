@@ -40,10 +40,14 @@ jobs:
 
       - name: Publish
         run: |
+          dotnet publish src/Notka.Mcp -c Release -r win-x64 --self-contained -o artifacts/desktop
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet publish src/Notka.Desktop -c Release -r win-x64 -p:Platform=x64 --self-contained -o artifacts/desktop
-          dotnet publish src/Notka.Mcp -c Release -r win-x64 --self-contained -o artifacts/mcp
-          Compress-Archive -Path artifacts/desktop/* -DestinationPath Notka-Desktop-win-x64.zip
-          Compress-Archive -Path artifacts/mcp/* -DestinationPath Notka-Mcp-win-x64.zip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($exe in "Notka.Desktop.exe", "Notka.Mcp.exe") {
+            if (-not (Test-Path "artifacts/desktop/$exe")) { throw "$exe is missing from the package" }
+          }
+          Compress-Archive -Path artifacts/desktop/* -DestinationPath Notka-win-x64.zip
 
       - name: Release
         env:
@@ -51,7 +55,7 @@ jobs:
         run: |
           $notes = "release-notes/${{ github.ref_name }}.md"
           if (Test-Path $notes) {
-            gh release create "${{ github.ref_name }}" Notka-Desktop-win-x64.zip Notka-Mcp-win-x64.zip --title "${{ github.ref_name }}" --notes-file $notes
+            gh release create "${{ github.ref_name }}" Notka-win-x64.zip --title "${{ github.ref_name }}" --notes-file $notes
           } else {
-            gh release create "${{ github.ref_name }}" Notka-Desktop-win-x64.zip Notka-Mcp-win-x64.zip --generate-notes
+            gh release create "${{ github.ref_name }}" Notka-win-x64.zip --generate-notes
           }

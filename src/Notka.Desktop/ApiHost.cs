@@ -18,7 +18,15 @@ namespace Notka.Desktop
 
         public string Token => _issued?.Value ?? string.Empty;
 
-        public async Task StartAsync()
+        public void SetAgentAccess(bool allowed)
+        {
+            if (_app is not null)
+            {
+                _app.Services.GetRequiredService<AgentAccess>().Allowed = allowed;
+            }
+        }
+
+        public async Task StartAsync(bool allowAgents = true)
         {
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { ContentRootPath = AppContext.BaseDirectory });
             _issued = ApiToken.CreateNew(builder.Configuration);
@@ -31,6 +39,7 @@ namespace Notka.Desktop
                 builder.Services.AddNotkaApi(builder.Configuration);
 
                 _app = builder.Build();
+                _app.Services.GetRequiredService<AgentAccess>().Allowed = allowAgents;
                 _app.MapNotkaEndpoints();
                 await _app.StartAsync();
                 Url = new Uri($"http://127.0.0.1:{port}");

@@ -328,6 +328,7 @@
 
     <Grid Grid.Row="1" Padding="48,16,48,16"
           Visibility="{x:Bind local:UiFunctions.VisibleWhen(Settings.IsOpen), Mode=OneWay}">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
       <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="24">
         <StackPanel Orientation="Horizontal" Spacing="12">
           <Button Command="{x:Bind Settings.CloseCommand}" Background="Transparent" BorderThickness="0"
@@ -353,11 +354,27 @@
                      Style="{StaticResource CaptionTextBlockStyle}"
                      Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
+        <StackPanel Spacing="6">
+          <ToggleSwitch Header="Zezwalaj agentom AI na sterowanie Notką" OnContent="Włączone" OffContent="Wyłączone"
+                        AutomationProperties.Name="Zezwalaj agentom AI na sterowanie Notką"
+                        IsOn="{x:Bind Settings.AllowAgents, Mode=TwoWay}" />
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button Content="Kopiuj prompt" Command="{x:Bind Settings.CopyAgentPromptCommand}"
+                    AutomationProperties.Name="Kopiuj prompt połączenia agenta" />
+            <TextBlock Text="{x:Bind Settings.AgentMessage, Mode=OneWay}" VerticalAlignment="Center"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+          </StackPanel>
+          <TextBlock Text="Wklej prompt do czatu agenta (Claude Desktop, Claude Code, Cursor), aby podłączył serwer MCP Notki."
+                     TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
         <InfoBar Severity="Error" IsClosable="False"
                  IsOpen="{x:Bind local:UiFunctions.HasText(Settings.Error), Mode=OneWay}"
                  Message="{x:Bind Settings.Error, Mode=OneWay}" />
         <Button Content="Zakończ Notkę" Command="{x:Bind Settings.ExitCommand}" />
       </StackPanel>
+      </ScrollViewer>
     </Grid>
 
     <InfoBar Grid.Row="2" Severity="Warning" IsClosable="False"
